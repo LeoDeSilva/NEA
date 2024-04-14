@@ -49,7 +49,7 @@ Register-to-Register arithmetic instructions use the R-type encoding for their m
 
 \bigskip
 
-The I type encoding is the second means for which instructions can be represented, and includes the data transfer and control instructions \texttt{lw, sw}, and \texttt{beq} specified above. \texttt{address} is a signed 16 bit constant. \texttt{rt} is the destination for \texttt{lw} and source for \texttt{beq} and \texttt{sw}. \texttt{rs} is the base register for the \texttt{lw} and \texttt{sw} instructions (added to the sign extended constant \texttt{address} to get a data memory address) \textcite{MIPS-uw}. 
+The I type encoding is the second means for which instructions can be represented, and includes the data transfer and control instructions \texttt{lw, sw}, and \texttt{beq} specified above. \texttt{address} is a signed 16 bit constant. \texttt{rt} is the destination for \texttt{lw} and source for \texttt{beq} and \texttt{sw}. \texttt{rs} is the base register for the \texttt{lw} and \texttt{sw} instructions (added to the sign extended constant \texttt{address} to get a data memory address) \textcite{MIPS-uw}. In this processor design, for a \texttt{beq} instruction, the \texttt{address} field specifies not a memory address, rather a signed offset from which to jump from the current PC position when executing the branch instruction.
 
 \bigskip
 
@@ -59,9 +59,15 @@ The I type encoding is the second means for which instructions can be represente
 
 \bigskip
 
+Below is the full datapath specification for the computer, with the Instruction Memory (ROM) on the left, connected to the PC in order to address instructions. Those instructions are in turn passed through the control unit and decoded, with the opcode specifying whether an I or R type instruction is being processed and accordingly what hardware should be used to interpret and execute the instruction. This dictates the calculation (if any) that is to be performed in the ALU - the output of which is stored in a seperate data memory.
+
+\bigskip
+
 \shadowbox{
     \includegraphics[width=11cm]{Screenshot 2024-04-14 at 19.42.11.png}
 }
+
+The behaviour described above is applicable to my project in 2 respects, firstly the encoding of instructions into meaningful machine code that directly considers to the hardware of the computer, and secondly, the behaviour of hardware (registers, memories, flags) that will have to be simulated when designing an emulator.
 \subsection{Prototyping}
 \subsection{Client Proposal}
 \subsubsection{Client Interview}
