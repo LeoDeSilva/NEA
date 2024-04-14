@@ -11,11 +11,11 @@ This project will explore lower level systems software and look in detail at the
 \label{sec:ISA}
 The ISA acts as an interface between the hardware and software of a computing system, and contains crucial information regarding the capabilities of a processor, including: a functional defenition of storage locations (e.g. registers and memories) as well as a description of all instructions and operations supported.
 
-An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware, minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set containing a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. 
+An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware (e.g. floating point arithmetic or transferring multiple registers to or from the stack), minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set consisting of a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. This has the side effect of increased memory usage required to store additional instructions needed to perform complex tasks.
 
 \subsubsection{Emulator}
 \label{sec:Emulator}
-An emulator is a software program that allows one computer to imitate another - and by simulating the hardware of the other – execute machine code programs written for a processor other than itself.
+An emulator is a software program that allows one computer to imitate another - and by simulating the hardware of the other – execute machine code programs written for a processor other than itself. Emulators tend to consist of three modules, a CPU emulator, memory subsystem module, and I/O device emulators \textcite{retroreversing}. The simplest form of CPU emulator is an interpreter - wherein the emulator steps sequentially through each machine code instruction, and carries out the fetch-decode-execute cycle for each, modifying the internal state of the simulated processor in the same manner as the instruction would affect the physical hardware - this can be achieved by representing internal flags and registers as variables. The Memory Subsystem can be implemented as a one dimensional array of bytes - with features such as memory mapped I/O implemented by associating regions of memory to peripherals and subsystems, e.g. Video Random Access Memory (VRAM), the stack, and the heap. 
 
 \subsubsection{Assembler}
 \label{sec:Assembler}
@@ -27,6 +27,41 @@ A compiler is a program that translates high level program source code into a se
 
 \subsection{Programming Language}
 \subsection{Existing Systems}
+\subsubsection{The Hack Computer}
+\subsubsection{University of Washington MIPS Computer}
+The following system is a 16 bit MISC (Minimal Instruction Set Computer) processor designed by the University of Washington for a series of lectures as part of their computer science course \textcite{MIPS-uw}. A MISC processsor is a subclass of the RISC processor and involves minimising the number of instructions implemented in hardware, resulting in far simpler hardware designs - where a RISC processor may have 30-70 instructions, a MISC processor may have merely 10-20 consisting of arithmetic, branching, loading and storing instructions. \textcite{MISC-dakeng}. 
+
+A MIPS (Microprocessor without Interlocked Pipelined Stages) processor such as this does not overlap the execution of several instructions (pipelining), thus neglecting the potential performance gains in favor of a simpler architecture. This processor is a single-cycle implementation meaning all instructions take exactly one cycle to complete, this is achieved using a Harvard architecture in place of Von Neuman wherein instructions are stored in a seperate Read Only Memory (ROM) to data, thus both can be fetched within the same processor cycle. 
+
+The processor supports the following instructions:
+\begin{enumerate}
+    \item Arithmetic \texttt{add, sub, and, or, slt (set if less than)}
+    \item Data Transfer \texttt{lw (load word), sw (store word)}
+    \item Control \texttt{beq (branch if equal to)}
+\end{enumerate} 
+Register-to-Register arithmetic instructions use the R-type encoding for their machine code representation, where \texttt{op} is the opcode of the instruction with \texttt{func} representing the particular arithmetic operation. \texttt{rs, rt}, and \texttt{rd} are the source and destination registers. This computer operates on an ALU with a 3 bit control signal supporting 5 operations that directly correspond to the \texttt{func} portion of an R type instructions binary encoding. 
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=11cm]{Screenshot 2024-04-14 at 22.19.47.png}
+}
+
+\bigskip
+
+The I type encoding is the second means for which instructions can be represented, and includes the data transfer and control instructions \texttt{lw, sw}, and \texttt{beq} specified above. \texttt{address} is a signed 16 bit constant. \texttt{rt} is the destination for \texttt{lw} and source for \texttt{beq} and \texttt{sw}. \texttt{rs} is the base register for the \texttt{lw} and \texttt{sw} instructions (added to the sign extended constant \texttt{address} to get a data memory address) \textcite{MIPS-uw}. 
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=11cm]{Screenshot 2024-04-14 at 22.33.16.png}
+}
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=11cm]{Screenshot 2024-04-14 at 19.42.11.png}
+}
 \subsection{Prototyping}
 \subsection{Client Proposal}
 \subsubsection{Client Interview}
