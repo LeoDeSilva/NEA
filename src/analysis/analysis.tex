@@ -2,14 +2,16 @@
 \subsection{Problem Defenition}
 The goal of this project is to design the hardware specification for a custom 16-bit single cycle CPU, and develop the suite of tools required to simulate such a processor, including an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) and its implementation in hardware, considering the internal registers, system clock, main memory, and fetch execute cycle.
 
-\subsubsection{Background to the Problem Area}
-This project will explore lower level systems software and look in detail at the fundemental architecture of modern computing systems. 
+The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware, memory, peripherals and registers detailed by the ISA in order to execute programs with correct clock timing and behaviour. An assembler to translate programs written in an assembly specification into binary machine code (the assembler will handle higher level conveniences such as relative addressing through labels). And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations with relation to the produced object code; complex data structures such as arrays, objects and strings; conditional and interative expressions; and functions and procedures. The suite required to simulate such a computer should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with peripherals such as a keyboard or speaker.
 
-\subsection{Definitions}
+\subsection{Background to the Problem Area}
+This project will explore lower level systems software and look in detail at the fundemental architecture of modern computing systems and how they are designed from the ground up.
 
 \subsubsection{Instruction Set Architecture}
 \label{sec:ISA}
 The ISA acts as an interface between the hardware and software of a computing system, and contains crucial information regarding the capabilities of a processor, including: a functional defenition of storage locations (e.g. registers and memories) as well as a description of all instructions and operations supported.
+
+An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware, minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set containing a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. 
 
 \subsubsection{Emulator}
 \label{sec:Emulator}
@@ -24,8 +26,8 @@ An assembler is a program that translates assembly language (a low level program
 A compiler is a program that translates high level program source code into a set of machine language instructions. Some compilers translate source code into an intermediate assembly language before using an assembler to produce the machine code instructions, whereas others compile into machine code directly.
 
 \subsection{Programming Language}
-\subsection{Prototyping}
 \subsection{Existing Systems}
+\subsection{Prototyping}
 \subsection{Client Proposal}
 \subsubsection{Client Interview}
 \subsection{Objectives}
