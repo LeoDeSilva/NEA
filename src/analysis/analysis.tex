@@ -61,13 +61,28 @@ The I type encoding is the second means for which instructions can be represente
 
 Below is the full datapath specification for the computer, with the Instruction Memory (ROM) on the left, connected to the PC in order to address instructions. Those instructions are in turn passed through the control unit and decoded, with the opcode specifying whether an I or R type instruction is being processed and accordingly what hardware should be used to interpret and execute the instruction. This dictates the calculation (if any) that is to be performed in the ALU - the output of which is stored in a seperate data memory.
 
+Since instructions are stored in a seperate ROM, the address of the first instruction will always begin at 0 - this simplifies the calculation of offsets and labels in the assembler – since the assumption that the first instruction begins at address 0 will always hold true. However, branch instructions are handled unusually in this computer - instead of specifying the jump address, the signed offset from the current instruction is specified instead. This has the effect of making compilation easier as branch addresses do not need to be calculated by the assembler, however renders specific jumps to memory addresses (such as the location of an interrupt service routine or bootloader) difficult.
+
 \bigskip
 
 \shadowbox{
     \includegraphics[width=11cm]{Screenshot 2024-04-14 at 19.42.11.png}
 }
 
-The behaviour described above is applicable to my project in 2 respects, firstly the encoding of instructions into meaningful machine code that directly considers to the hardware of the computer, and secondly, the behaviour of hardware (registers, memories, flags) that will have to be simulated when designing an emulator.
+The architecture described above has some notable advantages, firstly, its Harvard architecture allows the processor to operate each instruction in a single cycle – both improving performance and simplifying the design of the emulator as microinstruction cycles do not need to be simulated  to accurately simulate the hardware. Secondly, by dividing the computer architecture into 2 distinct I and R type instructions, you can reduce redundant information – and thus the bits required to store machine code instructions and programs.
+
+However, this simple architecture results in many inconveniences when writing assembly code - due to the limited instruction set, simple tasks take comparatively more instructions meaning programs are longer and more tedious to write - as well utilising more memory due to the limited number of specialized instructions who's functionality must be implemented using handwritten subroutines such as binary shifts, stack operations, or interrupt handling. 
+
+\bigskip
+
+The takeaways of this system for my project include:
+\begin{enumerate}
+    \item The encoding of instructions into meaningful machine code that directly relates to the hardware of the computer - for instance R type opcodes representing the control bits of the ALU, this makes decoding instructions more efficient - especially when implmented in hardware.
+    \item Secondly, the behaviour of hardware (registers, memories, flags) and the relationships between components during a single-cycle Harvard fetch-execute cycle that will have to be simulated when designing an emulator.
+    \item I will also expand the instruction set further than the MISC specification used in this processor to include other common instructions, and keep the memory-register seperation wherin operations are performed on register values, with 2 instructions \texttt{lw, sw} used for reading and writing to memory.
+    \item I will also change the branch instruction to operate on absolute addresses rather than signed offsets.
+\end{enumerate}
+
 \subsection{Prototyping}
 \subsection{Client Proposal}
 \subsubsection{Client Interview}
