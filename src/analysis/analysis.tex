@@ -19,7 +19,11 @@ An emulator is a software program that allows one computer to imitate another - 
 
 \subsubsection{Assembler}
 \label{sec:Assembler}
-An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. 
+An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. There are 2 types of assembler design, single-pass and multi-pass \cite{TOPPR-assembler}. A single-pass assembler scans the source code only once to translate it into machine code, and outputs the result directly. This is a simpler type of assembler, and is more efficient with regard to translation speed. However, it requires all symbols used within the program (variables, labels, etc...) to be declared before they are used - else the program will crash. 
+
+A multi-pass assembler however scans the source code multiple times, on the first pass defining a symbol table and opcode table \cite{TOPPR-assembler}, processes pseudo instructions (compound macro instructions that are substituted during assembly with a list of fundemental instructions), and maintaining a location counter to store the memory address of each instruction as it would be compiled.
+
+There are also certain higher level abstractions a high-level assembler can translate such as \texttt{IF/THEN/ELSE/WHILE} statements and certain higher level data types – however this results in a complex assembler and lengthy compilation times - as well as a blurred line between the role of high level and low level languages. 
 
 \subsubsection{Compiler}
 \label{sec:Compiler}
