@@ -2,26 +2,26 @@
 \subsection{Problem Defenition}
 The goal of this project is to design the hardware specification for a custom 16-bit single cycle CPU, and develop the suite of tools required to simulate such a processor, including an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) and its implementation in hardware, considering the internal registers, system clock, main memory, and fetch execute cycle.
 
-The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware, memory, peripherals and registers detailed by the ISA in order to execute programs with correct clock timing and behaviour. An assembler to translate programs written in an assembly specification into binary machine code (the assembler will handle higher level conveniences such as relative addressing through labels). And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations with relation to the produced object code; complex data structures such as arrays, objects and strings; conditional and interative expressions; and functions and procedures. The suite required to simulate such a computer should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with peripherals such as a keyboard or speaker.
+The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware, memory, peripherals and registers detailed by the ISA in order to execute programs with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations with relation to the produced object code; complex data structures such as arrays, objects and strings; conditional and iterative expressions; and functions and procedures. The suite required to simulate such a computer should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with peripherals such as a keyboard or speaker.
 
 \subsection{Background to the Problem Area}
-This project will explore lower level systems software and look in detail at the fundemental architecture of modern computing systems and how they are designed from the ground up.
+This project will explore lower level systems software and look in detail at the fundemental architecture of modern computing systems and how they are designed from the ground up. Looking in particular detail at the following 4 areas surrounding low level design.
 
 \subsubsection{Instruction Set Architecture}
 \label{sec:ISA}
 The ISA acts as an interface between the hardware and software of a computing system, and contains crucial information regarding the capabilities of a processor, including: a functional defenition of storage locations (e.g. registers and memories) as well as a description of all instructions and operations supported.
 
-An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware (e.g. floating point arithmetic or transferring multiple registers to or from the stack), minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set consisting of a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. This has the side effect of increased memory usage required to store additional instructions needed to perform complex tasks.
+An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware (e.g. floating point arithmetic or transferring multiple registers to or from the stack), minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set consisting of a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. This has the side effect of increased memory usage required to store the additional instructions needed to perform complex tasks not implemented in hardware.
 
 \subsubsection{Emulator}
 \label{sec:Emulator}
-An emulator is a software program that allows one computer to imitate another - and by simulating the hardware of the other – execute machine code programs written for a processor other than itself. Emulators tend to consist of three modules, a CPU emulator, memory subsystem module, and I/O device emulators \textcite{retroreversing}. The simplest form of CPU emulator is an interpreter - wherein the emulator steps sequentially through each machine code instruction, and carries out the fetch-decode-execute cycle for each, modifying the internal state of the simulated processor in the same manner as the instruction would affect the physical hardware - this can be achieved by representing internal flags and registers as variables. The Memory Subsystem can be implemented as a one dimensional array of bytes - with features such as memory mapped I/O implemented by associating regions of memory to peripherals and subsystems, e.g. Video Random Access Memory (VRAM), the stack, and the heap. 
+An emulator is a software program that allows one computer to imitate another - and by simulating the hardware of the other – execute machine code programs written for a processor other than itself. Emulators tend to consist of three modules, a CPU emulator, memory subsystem module, and I/O device emulators \textcite{retroreversing}. The simplest form of CPU emulator is an interpreter - wherein the emulator steps sequentially through each machine code instruction, and carries out the fetch-decode-execute cycle, modifying the internal state of the simulated processor in the same manner as the instruction would affect the physical hardware - this can be achieved by representing internal flags and registers as variables. The Memory Subsystem can be implemented as a one dimensional array of bytes - with features such as memory mapped I/O implemented by associating regions of memory to peripherals and subsystems, e.g. Video Random Access Memory (VRAM), the stack, and the heap. 
 
 \subsubsection{Assembler}
 \label{sec:Assembler}
-An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. There are 2 types of assembler design, single-pass and multi-pass \textcite{TOPPR-assembler}. A single-pass assembler scans the source code only once to translate it into machine code, and outputs the result directly. This is a simpler type of assembler, and is more efficient with regard to translation speed. However, it requires all symbols used within the program (variables, labels, etc...) to be declared before they are used - else the program will crash. 
+An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. There are 2 types of assembler design, single-pass and multi-pass \textcite{TOPPR-assembler}. A single-pass assembler scans the source code only once to translate it into machine code, and outputs the result directly. This is the simpler type of assembler, and is more efficient with regard to translation speed. However, it requires all symbols used within the program (variables, labels, etc...) to be declared before they are used - else the program will crash. 
 
-A multi-pass assembler however scans the source code multiple times, on the first pass defining a symbol table and opcode table \textcite{TOPPR-assembler}, processes pseudo instructions (compound macro instructions that are substituted during assembly with a list of fundemental instructions), and maintaining a location counter to store the memory address of each instruction as it would be compiled.
+A multi-pass assembler however scans the source code multiple times, on the first pass it defines a symbol and opcode table (mapping instructions and variables to their memory address which can be queried by the assembler when calculating offsets) \textcite{TOPPR-assembler}, processes pseudo instructions (compound macro instructions that are substituted during assembly with a list of fundemental instructions performing that complex task), and maintaining a location counter to store the memory address of each instruction as it would be compiled.
 
 There are also certain higher level abstractions a high-level assembler can translate such as \texttt{IF/THEN/ELSE/WHILE} statements and certain higher level data types – however this results in a complex assembler and lengthy compilation times - as well as a blurred line between the role of high level and low level languages. 
 
@@ -51,14 +51,20 @@ A compiler is a program that translates high level program source code into a se
 \bigskip
 
 
-The ASCII source code is tokenised by the lexer, and transformed into an Abstract Syntax Tree (AST) by the Parser. The AST is a means of breaking down the program, its statements, and order of operations into a tree representation that is easier to be processed and traversed by an algorithm. The AST representing expression ($\frac{7+2\times3}{2}$) depicted in fig. \ref{fig:ast}. The optimizer may convert the AST into an Internal Representation (IR) (be that binary, textual, or another syntax tree) that may lend itself better to optimisations and translation into the target language than the AST. From this new IR, optimisations may include eliminating dead code, precalculating simple arithmetic, and numerous other optimisations \textcite{Ball-WritingACompilerInGo}. Finally, the code generator generates the optimised code in the target language (compilation) and is stored as a file on the user's computer.
+A compiler is composed of three parts working in unison, Lexical analysis, Parsing, and Code Generation. The ASCII source code is tokenised by the lexer - meaning it is broken down into a list of its fundemental elements (e.g. strings, integers, keywords), and fed into the Parser where it is transformed into an Abstract Syntax Tree (AST) representing the structure of the program. 
+
+The AST is a means of breaking down the program, its statements, and order of operations into a tree representation that is easier to be processed and traversed by an algorithm. The AST representing expression ($\frac{7+2\times3}{2}$) is depicted in fig. \ref{fig:ast}. 
+
+The optimizer may convert the AST into an Internal Representation (IR) (be that binary, textual, or another syntax tree) which is another means of representing the data in a form that lends itself better to optimisations and translation into the target language than the AST. From this new IR, optimisations may include eliminating dead code, precalculating simple arithmetic, and numerous other optimisations \textcite{Ball-WritingACompilerInGo}. Finally, the code generator generates the optimised code in the target language (compilation) and is stores it as a file on the user's computer.
+
+
 
 \bigskip
 
 \bigskip
 
 \subsubsubsection{Lexer}
-The lexer steps through the ASCII source code character by character and builds up tokens representing the basic elements of programs such as a String, Integer, Identifier, Operation. For example the program: \texttt{print("Result: ", (answer+1)/2)} would be tokenised as:
+The first component of a compiler, the lexer steps through the ASCII source code character by character and builds up tokens representing the basic elements of a program such as a String, Integer, Identifier, Keyword. For example the program: \texttt{print("Result: ", (answer+1)/2)} would be tokenised as:
 
 \begin{lstlisting}
 IDENTIFIER("print"), LPAREN, String("Result: "), COMMA, LPAREN, IDENTIFIER("answer"), ADD, INTEGER(1), RPAREN, DIV, INTEGER(2), RPAREN
@@ -67,7 +73,9 @@ IDENTIFIER("print"), LPAREN, String("Result: "), COMMA, LPAREN, IDENTIFIER("answ
 This process of tokenising the program string into a series of objects makes it easier to parse into an AST and for the parser to step through by element rather than character.
 
 \subsubsubsection{Parser}
-The process of converting the list of tokens representing the program generated by the Lexer into a tree representation (AST) that reflects the order of operations and sequence of statements is called Parsing. And is carried out by a Parser. A common algorithm used for parsing programs is a Pratt parser due to its concise nature and extensibility. 
+The process of converting the list of tokens representing the program generated by the Lexer into a tree representation (AST) that reflects the order of operations and sequence of statements is called Parsing. And is carried out by a Parser. There are two classifications of parsing algorithms, a top down parser and a bottom up parser.
+
+A top-down parser builds its syntax tree from the root node, or highest level expressions (arithmetic operations, selective or iterative statements) and works its way down into the atomic (or leaf) nodes of the graph (individual numbers or variables). A bottom-up parser however begins with an atom such as an integer and continues to scan the source code - building up a picture of the syntax tree. For example, should the parser encounter an integer, it would continue scanning and were the next character to be an operation - the parser would know the statement must be an infix arithmetic operation, thus can transpose the graph into one representing a statement in that form (ie a root node with two children nodes for the left and right hand side of the operation). Repeating this process throughout the file builds up a syntax tree representing the program as a whole.
 
 \subsubsubsection{Optimization \& Code Generation}
 Code generation is the process of converting the AST generated from the Parser into an intermediate language which itself can be compiled down to an executable or interpreted by a virtual machine. For my NEA, the compiler will first compile down into assembly language - which will then be assembled into the executable machine code - simplifying compilation through the available higher level functionality such as labels and offsets. Each higher level statement typically templates onto a standard sequence of machine code instructions, for example a program to add 2 numbers:
@@ -76,14 +84,12 @@ let a = 9;
 let b = 5;
 let c = a + b;
 \end{lstlisting}
-
-May compile down into the following assembly language:
 \begin{lstlisting}
 ldi R0, 9
 ldi R1, 5
 add R2, R0, R1
 \end{lstlisting}
-Compilations such as these involve the mapping of a potentially infinite number of variables to a discrete number of regiseters and this can be performed using such algorithms as the Linear Scan or Chatins' algorithm \textcite{GFG-linearscan} that take into account variable lifetimes and interactions. Offsets required for branch instructions that may be used in iterative or selective statements can be calculated by counting the number of instructions compiled up to the point of a particular statement (e.g. the number of machine code instructions up the the condition of a while loop) and this can be used as either an absolute or relative offset depending on the capabilities of the assembler.
+Compilations such as these involve the mapping of a potentially infinite number of variables onto a discrete number of regiseters, and this can be performed using such algorithms as the Linear Scan or Chatins' algorithm \textcite{GFG-linearscan} that take into account variable lifetimes and interactions. Offsets required for branch instructions that may be used in iterative or selective statements can be calculated by counting the number of instructions compiled up to the point of a particular statement (e.g. the number of machine code instructions up the the condition of a while loop) and this can be used as either an absolute or relative offset depending on the capabilities of the assembler.
 
 \subsection{Existing Systems}
 \subsubsection{University of Washington MIPS Computer}
@@ -97,7 +103,7 @@ The processor supports the following instructions:
     \item Data Transfer \texttt{lw (load word), sw (store word)}
     \item Control \texttt{beq (branch if equal to)}
 \end{enumerate} 
-Register-to-Register arithmetic instructions use the R-type encoding for their machine code representation, where \texttt{op} is the opcode of the instruction with \texttt{func} representing the particular arithmetic operation. \texttt{rs, rt}, and \texttt{rd} are the source and destination registers. This computer operates on an ALU with a 3 bit control signal supporting 5 operations that directly correspond to the \texttt{func} portion of an R type instructions binary encoding. 
+Register-to-Register arithmetic instructions use the R-type encoding for their machine code representation, where \texttt{op} is the opcode of the instruction, \texttt{func} the control bits for that particular arithmetic operation, and \texttt{rs, rt}, and \texttt{rd} being the source and destination registers respectively. This computer operates on an ALU with a 3 bit control signal supporting 5 operations that directly correspond to the \texttt{func} portion of an R type instructions binary encoding. 
 
 \bigskip
 
@@ -107,7 +113,7 @@ Register-to-Register arithmetic instructions use the R-type encoding for their m
 
 \bigskip
 
-The I type encoding is the second means for which instructions can be represented, and includes the data transfer and control instructions \texttt{lw, sw}, and \texttt{beq} specified above. \texttt{address} is a signed 16 bit constant. \texttt{rt} is the destination for \texttt{lw} and source for \texttt{beq} and \texttt{sw}. \texttt{rs} is the base register for the \texttt{lw} and \texttt{sw} instructions (added to the sign extended constant \texttt{address} to get a data memory address) \textcite{MIPS-uw}. In this processor design, for a \texttt{beq} instruction, the \texttt{address} field specifies not a memory address, rather a signed offset from which to jump from the current PC position when executing the branch instruction.
+The I type encoding is the second means for which instructions can be represented, and includes the data transfer and control instructions \texttt{lw, sw}, and \texttt{beq} specified above. \texttt{address} is a signed 16 bit constant. \texttt{rt} is the destination for \texttt{lw} and source for \texttt{beq} and \texttt{sw}. \texttt{rs} is the base register for the \texttt{lw} and \texttt{sw} instructions (added to the signed constant \texttt{address} to get a data memory address) \textcite{MIPS-uw}. In this processor design, in a \texttt{beq} instruction, the \texttt{address} field specifies not a memory address, but a signed offset from which to jump from the current PC position when executing the branch instruction.
 
 \bigskip
 
@@ -127,15 +133,18 @@ Since instructions are stored in a seperate ROM, the address of the first instru
     \includegraphics[width=11cm]{Screenshot 2024-04-14 at 19.42.11.png}
 }
 
+\subsubsubsection{Advantages \& Disadvantages}
 The architecture described above has some notable advantages, firstly, its Harvard architecture allows the processor to operate each instruction in a single cycle – both improving performance and simplifying the design of the emulator as microinstruction cycles do not need to be simulated  to accurately simulate the hardware. Secondly, by dividing the computer architecture into 2 distinct I and R type instructions, you can reduce redundant information – and thus the bits required to store machine code instructions and programs.
 
 However, this simple architecture results in many inconveniences when writing assembly code - due to the limited instruction set, simple tasks take comparatively more instructions meaning programs are longer and more tedious to write - as well utilising more memory due to the limited number of specialized instructions who's functionality must be implemented using handwritten subroutines such as binary shifts, stack operations, or interrupt handling. 
 
 \bigskip
 
+\subsubsubsection{Takeaways}
 The takeaways of this system for my project include:
 \begin{enumerate}
-    \item The encoding of instructions into meaningful machine code that directly relates to the hardware of the computer - for instance R type opcodes representing the control bits of the ALU, this makes decoding instructions more efficient - especially when implmented in hardware.
+    \item I will consider using a Harvard architecture for my computer since all instructions can be single-cycle, thus simplifying design and emulation.
+    \item The encoding of instructions into meaningful machine code that directly relates to the hardware of the computer - for instance R type opcodes representing the control bits of the ALU, this makes decoding instructions more efficient - especially when implemented in hardware.
     \item Secondly, the behaviour of hardware (registers, memories, flags) and the relationships between components during a single-cycle Harvard fetch-execute cycle that will have to be simulated when designing an emulator.
     \item I will also expand the instruction set further than the MISC specification used in this processor to include other common instructions, and keep the memory-register seperation wherin operations are performed on register values, with 2 instructions \texttt{lw, sw} used for reading and writing to memory.
     \item I will also change the branch instruction to operate on absolute addresses rather than signed offsets.
@@ -159,6 +168,7 @@ For a C-type instruction the the first 2 bits of the 15 bit operand remain unuse
 
 \bigskip
 
+\subsubsubsection{Advantages \& Disadvantages}
 This approach to ISA design being so fundementally related to the internal operations of the CPU comes with some advantages and disadvantages. Firstly, it is a very efficient design - allowing all essential operations to be carried out with a simple computer architecture. This simplicity makes it an ideal compilation target. However, Hack assembly can be unintuitive to write and understand - especially in relation to its Harvard architecture and thus simultaneous addressing of both instructions and data from ROM or RAM respsectively. An example Hack assembly program might look as follows:
 \begin{lstlisting}
 // i = 1
@@ -192,6 +202,7 @@ Hack's approach to assembly is also worth considering, It uses parenthesis to sp
 
 To compile this down into machine code (once labels have been replaced with offsets) - the A instruction is simply the 15 bit operand. The C instruction however is more involved. A lookup table is used to map the operations (\texttt{+, -, /, *, !, \&}) into 5 bit opcodes (with the first bit of the 6 bit computation specified determined by whether the A or M registers are included in the operands). Then the bit corresponding to each destination specified will be set, and finally the conditional branch bits will be set depending on the mneumonic used, e.g. \texttt{JGE} would be replaced by \texttt{011}. Together, the instruction \texttt{D = D - A; JNE} would be represented by the binary \texttt{111 010011 010 101}. 
 
+\subsubsubsection{Takeaways}
 From this case study, there are a number of takeaways:
 \begin{enumerate}
     \item Breakdown instructions into types capable of representing a family of assembly insstructions - reducing the number of machine code instructions required to be implemented by the virtual machine.
@@ -226,16 +237,43 @@ let main = fn() {
 }
 \end{lstlisting}
 
-This approach to language syntax is convenient to program, in particular, by representing functions as variables it allows you to pass functions as parameters (first class functions) without additional logic, however functionality as such is difficult to implement in machine code - passing the address of the first instruction rather of the function than the function itself is a more practical solution for a compiled language. References and pointers are not present in Monkey, these permit complex functionality such as arrays and strings, whilst maintaining a simple compiler - however can lead to code that is difficult to understand and takes familiarity in the hardware to write. Monkey simply interprets these using Go's built in data structures thus doesn't have to worry about compiling them into binary - meaning specifying a data type is less important.
+\subsubsubsection{Advantages \& Disadvantages}
+There are some advantages with this approach to language design, for instance its syntax lends itself to a simple and convenient to program parser, in particular, by representing functions as variables it allows you to pass functions as parameters (first order functions) without any additional logic validating return types or parameters. However, functionality as such is difficult to implement in machine code. Instead, passing the address of the first instruction of the function, rather than the function itself is a more practical solution for a compiled language. References and pointers are also not present in Monkey, these permit complex functionality such as arrays and strings, whilst maintaining a simple compiler - however can lead to code that is difficult to understand and takes familiarity with the hardware \& implementation of the language to write. 
 
-Monkey is a dynamically typed languge - which means variable types are not checked and can result in runtime errors when attempting to add an integer to a string, or assign an integer to a float type variable. Using the \texttt{let} keyword to define a variable as above(unlike python) is vital for a compiled language - since additional functionality is required to allocate a memory address (or regiser) for that particular variable depending on its lifetime.
+Monkey represents variables using Go's built-in data structures, thus doesn't have to compile them into binary - meaning specifying a data type is less important, and the language can afford to be dynamically typed - this means variable types are not checked when compiling expressions, and can result in runtime errors when attempting to add an integer to a string, or assign an integer to a float type variable. Using the \texttt{let} keyword to define a variable as above(unlike python) is vital for a compiled language - since additional functionality is required to allocate a memory address (or regiser) when declaring a variable depending on its lifetime.
 
+\subsubsubsection{Implementation}
+I will also look at the implementation of this language, in particular its Lexer and Parser as these are directly relevant to my NEA. Firstly, the Lexer. Monkey represents tokens as all deriving from an abstract class \texttt{Token} defined below.
+
+\begin{lstlisting}
+enum TokenType {
+    LPAREN,
+    RPAREN,
+
+    STRING,
+    IDENTIFIER,
+    INTEGER,
+    ...
+}
+
+type Token struct {
+    enum TokenType
+    Literal String
+}
+\end{lstlisting}
+
+The code is scanned character by character and the fundemental elements of the program are stored in these token objects, for instance the string \texttt{"Hello, World!"} would be stored as \texttt{Token(TokenType::String, "Hello, World")}. A list of these token objects are returned by the lexer and used as input to the parser.
+
+The Monkey interpreter's parser uses a top-down Pratt parser as opposed to the more common bottom-up parser.  Top-down parsers are simpler and more elegant to write due to their highly recursive nature - however this can make them troublesome to debug and maintain. They avoid much of the complex graph transpositions required for a bottom up parser.
+
+\subsubsubsection{Takeaways}
 The takeaways from this system include:
 \begin{enumerate}
     \item Using established programming language norms for defining variables, iterative statements and functions will make the programming language easier to learn due to transferable experience.
     \item Designing a statically typed language would reduce program crashes and lead to a more robust compiler and programs.
     \item Including references and pointers allow for the implementation of features such as arrays and strings whilst maintaining a concise and simple compiler.
     \item I should consider defining variables with the 'let' keyword to tell the compiler it needs to insert additional logic calculating an appropriate memory address in which to store the variable, and store that address in a lookup table against its identifier.
+    \item I should consider writing a top-down parser as opposed to a bottom up parser to ensure the code is cleaner, simpler and more elegant.
 \end{enumerate}
 
 \subsubsection{Jack}
@@ -274,11 +312,31 @@ class List {
 \end{lstlisting}
 
 
-Above is the example program to define a linked list in Jack as provided in the book, and shows the similarities and differences to other popular languages. Jack has program structure very similar to that of Java, or C\# - relying on a series of classes containing program logic which can be invoked using the \texttt{do} keword. Jack splits the functionality of certain keywords in typical programming languages into more specialized roles: for instance the \texttt{field} keyword used to define object attributes, the \texttt{let} keyword being used every time when assigning to variables, the \texttt{method} and \texttt{constructor} keywords typically under the umbrella of \texttt{function}, and the \texttt{do} keyword used to invoke methods. This can introduce a steeper learning curve when learning Jack and adds complexity.
+Above is the example program to define a linked list in Jack as provided in the book, and shows the similarities and differences to other popular languages. Jack has program structure very similar to that of Java, or C\# - relying on a series of classes containing program logic which can be invoked using the \texttt{do} keword. Jack splits the functionality of certain keywords in typical programming languages into more specialized roles: for instance the \texttt{field} keyword used to define object attributes, the \texttt{let} keyword being used every time when assigning to variables, the \texttt{method} and \texttt{constructor} keywords typically under the umbrella of \texttt{function}, and the \texttt{do} keyword used to invoke methods. This can introduce a steeper learning curve when learning Jack and adds potentially unecessary complexity.
 
-However the reason for differentiating field variables and regular variables is due to their lifetimes. A copy of field variables needs to be maintained for each instance of a paritcular class - wheras other local variables can be freed from memory once their particular subroutine terminates and they are no longer used.
+However the reason for differentiating field variables and regular variables, for instance, is due to their lifetimes. A copy of field variables needs to be maintained for each instance of a particular class - wheras other local variables can be freed from memory once their subroutine terminates and they are no longer used.
 
-To compile selection statements in the Jack Compiler, the compiler generates a series of arbitrary labels e.g. (L1, L2) and places these after key points in the selective process in order to avoid offset calculating - a functionality that can be handled by the assembler. To compile the following:
+\subsubsubsection{Implementation}
+The code generation in the Jack language involves scanning through the Abstract syntax tree and for each Node type (e.g. Infix, Selection, Iterative) appending a template of (optimized) assembly language instructions into an array which can then be compiled down into its ASCII representation. A typical example of such compilation would be through the compilation of the statement \texttt{let x = b - 2}. The AST for this is below, and is the data structure that would be passed to the code generator:
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=6cm]{Screenshot 2024-04-22 at 18.59.30.png}
+}
+
+\bigskip
+
+From this, the code generator would traverse the graph using pre-order traversal, recursively calling the \texttt{compile} method on each node, for instance, the compile method would be called on the parent root node, which would recursively call the same method on each of its child nodes. During compilation of the RHS node, it would also recursively compile its child nodes - until an assembly representation of the program is built up. The compile method generates a list of assembly language instructions which perform the behaviour specified for that particular operation. The assembly generated for this program would look as follows:
+\begin{lstlisting}
+// x variable is mapped to memory address $01 
+ldi a, 2
+sub b, a 
+sw  $01, b
+\end{lstlisting}
+Depending on the number of working variables in memory, the register x may be assigned to one of the general purpose registers instead.
+
+The unique method in which selection statements are compiled down into assembly code in the Jack compiler is useful to analyse due to the convenience it offers when writing a compiler - namely it allows you to ignore calculating offsets by taking full advantage of the higher level features of the assembler (a luxury afforded due to the two step compilation process). To compile selection statements in the Jack Compiler, the compiler generates a series of arbitrary labels e.g. (L1, L2) and places these after key points in the selective process in order to avoid offset calculating - a functionality that can be handled by the assembler. To compile the following:
 \begin{lstlisting}
 if (b > 10) {
     c = b;
@@ -318,19 +376,23 @@ goto end
 .end
 \end{lstlisting}
 
+\subsubsubsection{Advantages \& Disadvantages}
 The advantages of the Jack programming language include its specific keywords that offer insight into the manner in which its features are implemented - removing some of the abstraction typical higher level langauges offer. Another advantage is its type system, resulting in robust programs and reducing the edge cases a compiler would have to deal with. If an incorrect type was passed to a function or operation, an error would be thrown at compile time and no such error could occur in the compiled machine code.
 
-However, the disadvantages of the Jack language include its Object Oriented approach making compilation difficult. Attribute variables on different instances of classes will have different  lifetimes and therefore freeeing the finite number of registers the computer offers to make space for newly declared variables becomes much harder a task. Secondly, Jack uses many unecessary keywords, for instance the \texttt{do} keyword functioning as an abstraction for calling a method and ignoring its return value, and the \texttt{let} keyword being required every time you assign a variable rather than for its declaration alone. This means declarations in Jack are required to be sepereate statements, increasing the volume of code required to perform the same task.
+However, the disadvantages of the Jack language include its Object Oriented approach making compilation difficult. Attribute variables on different instances of classes will have different  lifetimes and therefore freeing the finite number of registers the computer offers to make space for newly declared variables becomes much harder a task. Secondly, Jack uses many unecessary keywords, for instance the \texttt{do} keyword functioning as an abstraction for calling a method and ignoring its return value, and the \texttt{let} keyword being required every time you assign a variable rather than for its declaration alone. This means declarations in Jack are required to be sepereate statements, increasing the volume of code required to perform the same task.
 
+\subsubsubsection{Takeaways}
 The takeaways from this language include:
 \begin{enumerate}
     \item Use a procedural aproach to program structure rather than an object oriented one.
     \item Limit the number of keywords used in the final source code to only those that offer useful insight into the purpose of statements in the program.
+    \item Consider implementing a 2 step compilation process to take advantage of the assemblers higher level conveniences around labels and offsets.
     \item Use a simplified statically typed type system closer to that of Java or Go rather than Rust or C.
     \item Compile selection and iterative statements using generated labels rather than calculated offsets.
 \end{enumerate}
 
 \subsubsection{Virtual Machine Example}
+\subsubsection{3 address code???}
 
 \subsection{Client Proposal}
 \subsubsection{Client Interview}
