@@ -1,0 +1,95 @@
+\subsection{Objectives}
+\begin{longtable}{ | p{2cm} | p{4cm} | p{5cm} | p{4cm} | } 
+    \hline
+        Objective & Requirement & Justification & Deliverables \\ 
+    \hline
+        1.0 ISA \& Assembler & & & \\ 
+    \hline
+        1.1 & 
+        The processor should implement a RISC (Reduced Instruction Set Computer) design philosophy. 
+        & A RISC instruction set can have better performance due to the faster and more efficient execution of it's instructions, especially when a user isn't as familiar with the instruction set of the system. (Client Interview 1.1) 
+        & \\
+  \hline
+        1.2 & 
+        The processor should use a Harvard computer architecture where data and instructions are stored in seperate memories. & 
+        Data and instructions can be fetched during the same processor cycle, so execution is more time efficient  and emulation easier (University of Washington MIPS Computer 1.)
+        & \\
+  \hline
+        1.3 & 
+        My assembly language should support 3 address operands and hide the need to address data and instructions from different memories.& 
+        3 address operands is the programming standard for both arm and x86, pre-established instruction sets programemrs are already familiar with. (Client Interview 1.2)
+        & 
+        Assembly instructions should take 3 operands: a destination register followed by 1-2 source registers. Programmers should interface with the branch and load instructions in the same manner when addressing instructions or data.\\
+  \hline
+        1.4 & 
+        My assembler should be able to calculate offsets of branch instructions from the position of labels within the source code. & 
+        Labels allow programmers to write branching or selective statements without having to manually calculate memory offests. (The Hack Computer, The University of Washington MIPS Computer, Client Interview) & 
+        My assembler should replace all occurences of a label in the assembly source code with calculated offests from the current instruction to that label.\\
+  \hline
+        1.5 & 
+        My assembler should provide of macro instructions to perform common tasks that are not otherwise specified in the ISA. &
+        Macro instructions minimise the need for programmers to repeat chunks of code to perform common tasks such as pushing values to the stack or calling functions. (The Hack Computer 2., Client Interview) & 
+        The assembler should substitute compound instructions such as \texttt{call} and \texttt{ret} for a list of machine code instructions that perform the same task.\\
+    \hline
+        1.6 & 
+        My pocessor should have the following internal registers: 16 general purpose registers, a Delay timer, Program Counter, and Stack Pointer.  &
+        Prioritising registers over RAM improves processor performance as calculations can be performed with reduced latency. A delay timer simplifies the process of timing CPU operations, and a memory-resident address stack simplifies the process of calling and returning from functions. (Austin Moorlan's CHIP-8 Emulator, Client Interview 1.3)& 
+        My processor should have 16 general purpose registers (r0-rF), a stack pointer (SP), program counter (PC), and delay timer (DT).\\
+    \hline
+        1.7 & 
+        My CPU should operate with a word length of 16-bits. &
+        A 16-bit word length allow more bits to be processed in a single cycle and allows 16-bit instructions to be fetched within a single cycle improving performance. 16-bits can also represent numbers of a greater magnitude than 8-bits reducing overflow errors. (Client Interview 1.4) &
+        Registers, ALU operations, memory locations and busses should all operate on 16-bit values.\\
+    \hline
+        2.0 Compiler & 
+        &
+        & 
+       \\
+    \hline
+        2.1 & 
+        The syntax of my language should follow C standards with semi colons and braces rather than indentation. &
+        This makes for easier compilation and more flexibility when formatting code, as well as reporting errors such as an unterminated brace at compile time (unlike incorrect indentation which may not be detected until debugging) (Client Interview 2.2) & 
+        Lines should be terminated using a semi-colon, and curly-braces used to signify code blocks in selective or iterative expressions rather than indentation.\\
+    \hline
+        2.2 & 
+        The programming language should be statically typed. &
+        A type system ensures type-errors are thrown at compile time rather than during execution, leading to more robust programs that are easier to debug. Furthermore compilation becomes easier with statically typed variables as their size in memory is predetermined. (Monkey.2, Jack.4, Client Interview 2.5) & 
+        My syntax should support signed and unsigned integers, strings, and integers of different sizes. The \texttt{let} keyword should be used when declaring a variable and require the type to be specified alongside its identifier. \\
+    \hline
+        2.3 & 
+        The language should support a procedural programming paradigm. &
+        Procedural programming is much more straightforward to compile since variable lifetimes within multiple instances and references of an object don't have to be calculated - simplifying the process of garbage collection. (Client Interview 2.1, Jack.1) & 
+        All statements should be contained within methods, with the single entry point being a compulsory \texttt{main()} method. \\
+    \hline
+        2.4 & 
+        My langauge should feature structures to group related variables in memory.  &
+        Structures offer a way to transparently organise data in a structured manner in memory - without the complexity of attaching methods, constructors, public and private variables etc... Structures can be passed between functions by reference as a parameter to contain program state and produce cleaner code. (Monkey) & 
+        The \texttt{struct} keyword should be used to define a struct, followed by a list of all attributes and their data types. Structs should be instantiated using curly braces and a list of properties. \\
+    \hline
+        2.5 & 
+        My language should support references and pointers to variables in memory. & 
+        Pointers allow programmers to implement arrays and strings by accessing variables through their memory location rather than an identifier. They also let you pass structs (otherwise a large data structure inefficient to pass as a copy) to a function as well as references to the first instruction of a function (allowing for first order functions) (Monkey.3)& 
+        Programmers should be able to create a pointer to a variable: (\texttt{\&a}), and dereference it (\texttt{*a}). \\
+    \hline
+        2.6 & 
+        The compiler should produce relevant error messages, pointing out the position in source code if relevant. &
+        Relevant error messages make debugging much easier and improve the programmer's experience with a language. (Client Interview 2.4) &
+        Error messages should include an easy to understand description of the error, its position in source code - and if possible, relevant steps to correcting it.
+        \\
+    \hline
+        3.0 Virtual Machine & 
+        &
+        & 
+       \\
+    \hline
+        3.1 & 
+        The Virtual Machine should include a graphical display showing the contents of VRAM. &
+        It makes programs more interactive and easily debuggable, as well as allowing programs such as simulations or games to be written for the system, expanding its capabilties. (Austin Morlan's CHIP-8 Emulator) & 
+        \\
+    \hline
+        3.2 & 
+        The Virtual Machine should include a togglable debugger. &
+        A debugger would help programmers locate errors and test their programs, as well as ensuring the internal state of the computer is being modified as intended. (Client Interview 3.1, Austin Morlan's CHIP-8 Emulator.2) & 
+        The debugger should show the contents of the general and special purpose registers, the currently executing instruction, and be able to probe the contents of memory. \\
+        \hline
+\end{longtable}
