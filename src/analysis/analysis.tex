@@ -1,25 +1,25 @@
 \section{Analysis}
 \subsection{Problem Defenition}
-The goal of this project is to design the hardware specification for a custom 16-bit single cycle CPU, and develop the suite of tools required to simulate such a processor, including an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) and its implementation in hardware, considering the internal registers, system clock, main memory, and fetch execute cycle.
+The goal of this project is to design the hardware specification for a custom CPU, and develop the suite of tools required for a programmer to write programs for this processor. This will involve writing an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) and its implementation in hardware, considering the internal registers, system clock, main memory, and fetch execute cycle.
 
-The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware, memory, peripherals and registers detailed by the ISA in order to execute programs with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations with relation to the produced object code; complex data structures such as arrays, objects and strings; conditional and iterative expressions; and functions and procedures. The suite required to simulate such a computer should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with peripherals such as a keyboard or speaker.
+The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware behaviour required to execute them with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations in the produced object code; complex data structures such as arrays, objects and strings; conditional and iterative expressions; and finally functions and procedures. All together, the processor and suite surrounding it should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with I/O peripherals such as a keyboard or speaker.
 
 \subsection{Background to the Problem Area}
-This project will explore lower level systems software and look in detail at the fundemental architecture of modern computing systems and how they are designed from the ground up. Looking in particular detail at the following 4 areas surrounding low level design.
+I have a keen curiosity around the lower level elements of software development, and this project will help me understand how the everyday langauges I use to program are implemented from the processor level upwards. It will look in detail at the fundemental architecture of modern computing systems and how they are developed, looking in particular at the process of designing a processor and corresponding machine code specification with an assembler and compiler to allow a programmer to write programs to run on this computer. Below I will perform some initial research into what these 4 components of the system would entail:
 
 \subsubsection{Instruction Set Architecture}
 \label{sec:ISA}
-The ISA acts as an interface between the hardware and software of a computing system, and contains crucial information regarding the capabilities of a processor, including: a functional defenition of storage locations (e.g. registers and memories) as well as a description of all instructions and operations supported.
+The ISA acts as an interface between the hardware and software of a computing system, it contains crucial information regarding the capabilities of a processor, including: a functional defenition of storage locations (e.g. registers and memories) as well as a description of all instructions and operations supported. An important consideration will be whether to design an 8 or 16 bit system, 16-bits would allow for more complex instructions and operations to be executed in a single cycle since more bits can be processed by the CPU simultaneously, however an 8 bit system is more efficient and simpler to design and emulate since considerations like whether to use little or big endian encodings can be ignored (whether to store the most significant byte of a 16-bit integer before or after the least significant).
 
-An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware (e.g. floating point arithmetic or transferring multiple registers to or from the stack), minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in processors with large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set consisting of a few basic instructions to load, evaluate and store data - instead placing optimisations on the software side unlike a CISC processor. This has the side effect of increased memory usage required to store the additional instructions needed to perform complex tasks not implemented in hardware.
+An ISA can be classified according to its architectural comlpexity into a Complex Instruction Set Computer (CISC), or a Reduced Instruction Set Computer (RISC). A CISC processor implements a wide variety of specialized instructions in hardware (e.g. floating point arithmetic or transferring multiple registers to or from the stack), minimising the number of instructions per program at the cost of a more complex design, higher power consumption and slower execution as each instruction requires more processor cycles to complete. \textcite{gfg-risc-vs-cisc} Thus optimisations in performance occur on the hardware level. This is historically the most common branch of processor and often results in large instruction sets, for example the Intel x86's 1503 defined instructions \textcite{ryg-blog}. A RISC processor however aims to simplify hardware using an instruction set consisting of a few basic instructions to load, evaluate and store data. This has the side effect of increased memory usage, as memory is required to store the additional instructions needed to perform the complex tasks not implemented in hardware.
 
 \subsubsection{Emulator}
 \label{sec:Emulator}
-An emulator is a software program that allows one computer to imitate another - and by simulating the hardware of the other – execute machine code programs written for a processor other than itself. Emulators tend to consist of three modules, a CPU emulator, memory subsystem module, and I/O device emulators \textcite{retroreversing}. The simplest form of CPU emulator is an interpreter - wherein the emulator steps sequentially through each machine code instruction, and carries out the fetch-decode-execute cycle, modifying the internal state of the simulated processor in the same manner as the instruction would affect the physical hardware - this can be achieved by representing internal flags and registers as variables. The Memory Subsystem can be implemented as a one dimensional array of bytes - with features such as memory mapped I/O implemented by associating regions of memory to peripherals and subsystems, e.g. Video Random Access Memory (VRAM), the stack, and the heap. 
+An emulator is a software program that allows the host computer to replicate the hardware of the target machine. It reads machine code instructions assembled for the target computer from memory and interprets them, mimicing the internal state of the target machine in the process, \textcite{CHIP-8-blog}. Emulators consist of three modules, a CPU emulator, memory subsystem, and I/O device emulators, \textcite{retroreversing}. The simplest form of CPU emulator is an interpreter - wherein the emulator steps sequentially through each machine code instruction, and carries out the fetch-decode-execute cycle, modifying the internal state of the simulated processor in the same manner the instruction would affect the physical hardware. The Memory Subsystem is a one dimensional array of bytes that can be addressed in the same manner as RAM, regions of memory are allocated to peripherals and subsystems as with a real processor, e.g. Video Random Access Memory (VRAM), the stack, and the heap. Finally, I/O device emulators translate the input from your keyboard into device specific command signals that the processor can interface with.
 
 \subsubsection{Assembler}
 \label{sec:Assembler}
-An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. There are 2 types of assembler design, single-pass and multi-pass \textcite{TOPPR-assembler}. A single-pass assembler scans the source code only once to translate it into machine code, and outputs the result directly. This is the simpler type of assembler, and is more efficient with regard to translation speed. However, it requires all symbols used within the program (variables, labels, etc...) to be declared before they are used - else the program will crash. 
+An assembler is a program that translates assembly language (a low level programming language that uses mneumonics to directly represent machine code instructions) into object code that can be executed by the processor. There are 2 types of assembler design, single-pass and multi-pass \textcite{TOPPR-assembler}. A single-pass assembler scans the source code only once to translate it into machine code, and outputs the result directly. This is the simpler type of assembler, and has faster translation speeds. However, it requires all symbols used within the program (variables, labels, etc...) to be declared before they are used - else the program will crash. 
 
 A multi-pass assembler however scans the source code multiple times, on the first pass it defines a symbol and opcode table (mapping instructions and variables to their memory address which can be queried by the assembler when calculating offsets) \textcite{TOPPR-assembler}, processes pseudo instructions (compound macro instructions that are substituted during assembly with a list of fundemental instructions performing that complex task), and maintaining a location counter to store the memory address of each instruction as it would be compiled.
 
@@ -93,6 +93,7 @@ Compilations such as these involve the mapping of a potentially infinite number 
 
 \subsection{Existing Systems}
 \subsubsection{University of Washington MIPS Computer}
+\label{sec:UoW}
 The following system is a 16 bit MISC (Minimal Instruction Set Computer) processor designed by the University of Washington for a series of lectures as part of their computer science course \textcite{MIPS-uw}, and I will discuss its ISA and machine code encoding - to aid my design of an appropriate and efficient computer architecture. A MISC processsor is a subclass of the RISC processor and involves minimising the number of instructions implemented in hardware, resulting in far simpler hardware designs - where a RISC processor may have 30-70 instructions, a MISC processor may have merely 10-20 consisting of arithmetic, branching, loading and storing instructions. \textcite{MISC-dakeng}. 
 
 A MIPS (Microprocessor without Interlocked Pipelined Stages) processor such as this does not overlap the execution of several instructions (pipelining), thus neglecting the potential performance gains in favor of a simpler architecture. This processor is a single-cycle implementation meaning all instructions take exactly one cycle to complete, this is achieved using a Harvard architecture in place of Von Neuman wherein instructions are stored in a seperate Read Only Memory (ROM) to data, thus both can be fetched within the same processor cycle. 
@@ -206,6 +207,7 @@ To compile this down into machine code (once labels have been replaced with offs
 From this case study, there are a number of takeaways:
 \begin{enumerate}
     \item Breakdown instructions into types capable of representing a family of assembly insstructions - reducing the number of machine code instructions required to be implemented by the virtual machine.
+    \item I will maintain a comparatively small instruction set, relying on macro instructions (compound instructions that are substituted at compile time for a list of fundemental ones carrying out that defined task) instead.
     \item Use a pseudo-register to represent the addressing behaviour of a Harvard architecture computer, simplifying operations involving memory access \& compilation behaviour.
     \item Represent branch conditionals through 3 bits reflecting \texttt{<, =, >} comparisons  
     \item Use one bit to represent each destination register allowing for a combination of destinations for a paricular instruction meaning seperate instructions need not be created for storing data in memory or registers.
@@ -391,9 +393,226 @@ The takeaways from this language include:
     \item Compile selection and iterative statements using generated labels rather than calculated offsets.
 \end{enumerate}
 
-\subsubsection{Virtual Machine Example}
-\subsubsection{3 address code???}
+\subsubsection{Austin Morlan's CHIP-8 Emulator}
+CHIP-8 is a specification for a fictitious computer designed to provide an easy entry point into developing emulators, intended as a stepping stone before approaching more complex systems. I will analyse Austin Morlan's CHIP-8 emulator, \textcite{CHIP-8}, and discuss the manner in which he has realised the internal state of the computer through code and how this can be applied to my system.
+
+First I will discuss the actual hardware of the CHIP-8 computer itself, in order to provide a background when discussing its implementation in code. The CHIP-8 system is an 8-bit general purpose, Von Neuman computer. It has 16 general purpose registers labelled \texttt{V0-VF} which can hold values ranging from \texttt{0x00-0xFF}, \textcite{CHIP-8-blog}. The \texttt{VF} flag is called the flag register, and its bits are set or unset depending on the result of calculations. For example, were the result of a calculation to be negative, the corresponding negative bit in the \texttt{VF} flag would be set.
+
+CHIP-8 contains 4096 bytes of memory (from \texttt{0x000} to \texttt{0xFFF}) subdivided as follows: \texttt{0x000-0x1FF} contains the bootloader (a program to initialise the computer's state and begin execution of general purpose programs), \texttt{0x040-0x0A0} contains the computers character set (binary data containing the pixel representations of ASCII characters), and the rest of the memory is used to store instructions and data respectively.
+
+CHIP-8 also contains a number of special purpose internal registers including a 16 bit Index register (I) used to store memory addresses for use in operations, and a 16 bit Program Counter (PC) that holds the address of the next instruction to execute, \textcite{CHIP-8-blog}. There is also an 8-bit Delay timer that decrements its value when non-zero - used to regularise time intervals between frames when writing games, and an 8-Bit Sound Timer that emits a buzz when its value is non-zero.
+
+The CHIP-8 computer contains a 16-bit address stack of depth 16 referred to by an 8-bit stack pointer (SP) which keeps track of the most recent value pushed onto the stack. Whenever a \texttt{call} instruction is executed, the current value of the PC is pushed onto the top of the stack and SP incremented to point to this new value. Correpondingly, when a \texttt{ret} instruction is executed, the top value is popped off of the stack and set as the new value for the PC, causing program execution to resume after the \texttt{call} instruction.
+
+Finally, CHIP-8 has memory-mapped I/O (where the input or output of peripherals are stored in main memory). For instance, 16 bits are used to represent the 16 keys of the CHIP-8 system with a 0 or 1 rerpesenting whether a key is held down. 2KB are used to store the 32*64 black and white monochrome display - with one bit per pixel.
+
+Austin represented this internal state through the following class definition:
+\begin{lstlisting}
+#define CHARSET_ADDRESS  0x50
+#define START_ADDRESS    0x200
+#define MEMORY_SIZE      4096;
+#define VIDEO_HEIGHT     32;
+#define VIDEO_WIDTH      64;
+
+class Chip8 {
+    public:
+        uint8_t registers[16];
+        uint8_t memory[4096];
+        uint16_t index;
+        uint16_t pc;
+        uint16_t stack[16];
+        uint8_t sp;
+        uint8_t delayTimer;
+        uint8_t soundTimer;
+        uint16_t opcode;
+};
+\end{lstlisting}
+
+The scaffolding of Morlan's emulator revolves around an indefinite loop simulating the CPU's clock cycles, each of which contains the code to fetch, decode and execute instructions, \textcite{Muller-CHIP-8}. First the program fetches the 16-bit instruction from the address specified by the PC (and its following byte) and a bitmask is applied to extract the 4-bit opcode. A switch statement is then used to determine the operation and modify the internal state of the computer to carry out its behaviour accordingly by modifying register values or reading/writing to memory. Finally the timers are decremented should they be non-zero. 
+
+\begin{lstlisting}
+void chip8::emulateCycle() {
+  // Fetch 16-bit instruction (4-bit opcode, 12-bit operand)
+  instruction = memory[pc] << 8 | memory[pc + 1];
+ 
+  // Decode opcode
+  switch(instruction & 0xF000) {    
+    case 0xA000: // ANNN: Sets I to the address NNN
+      I = opcode & 0x0FFF;
+      pc += 2;
+    break;
+
+    [...]
+ 
+    default:
+      printf ("Unknown opcode: 0x%X\n", opcode);
+  }  
+ 
+  // Update timers
+  if(delay_timer > 0)
+    --delay_timer;
+ 
+  if(sound_timer > 0) {
+    --sound_timer;
+  }  
+}
+\end{lstlisting}
+
+\subsubsubsection{User Interface}
+Morlan has designed the UI for his emulator with 2 distinct parts, the display on the left, and the debugger on the right. The display is a graphical representation of the contents of VRAM, consisting in this case of a 32x64 pixel monochrome display. The debugger contains a dissassembled version of the currently executing instruction represented as a mneumonic, the contents of all special purpose registers (I, PC, SP), all general purpose registers (V0-VF), and the stack. This information allows a programmer to determine whether their code is running and registers being modified as expected, debugging their programs accordingly.
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=12cm]{Screenshot 2024-04-27 at 16.02.09.png}
+}
+
+\subsubsubsection{Advantages \& Disadvantages}
+Morlan has decided to increment the PC value inside the switch statement seperately for each instruction (\texttt{emulateCycle()} line 9), reducing a potential source of bugs. If the PC is incremented automatically at the end of the \texttt{emulateCycle()} method, should the PC be modified during the execution of an instruction (e.g. branch, call or return) then automatically incrementing the PC would offset its value from that which is intended. 
+
+Morlan's debugger contains enough information to be of use to a programmer, however without a means to probe memory, lacks some of the functionality required. Furthermore, its prominent position in the UI overshadows the actual display, so a toggleable debugger would leave more room for the display itself.
+
+Around the CHIP-8 system more generally, having memory addressable through 3 bytes (0x000-0xFFF or 4096 distinct memory locations) frees a nibble to represent the opcode, meaning an instruction can fit in a 16 bit register - since this is the same as the word size for the CHIP-8 processor, it means the system can fetch all instructions within a single cycle, increasing efficiency.
+
+Furthermore, using a Delay timer rather than an interrupt-request system simplifies the process of synchronising CPU operations to real world timings, e.g. when drawing frameas for a simulation at a fixed frame rate, instead of polling (listening) for requests to trigger the code to draw a frame, only executing the code to draw the frame when the delay counter is 0 would have the same effect.
+
+\subsubsubsection{Takeaways}
+The takeaways from the CHIP-8 architecture and emulator include:
+\begin{enumerate}
+    \item Incrementing the PC should be done either inside the switch statement or after fetching the instruction to avoid modifying the PC multiple times and reduce a source of bugs.
+    \item Design a togglable debugger that can be hidden when it is not required to prioritise space for the graphical display.
+    \item Using a Delay timer rather than an interrupt-request system simplifies both the hardware and software side of the comptuer, avoiding the need to define Interrupt Request Tables (mapping interrupt codes to the Interrupt Service Request (ISR) required to service them).
+\end{enumerate}
 
 \subsection{Client Proposal}
+My client is my uncle, a software engineer who has a keen curiosity around lower level development. He would like to learn how the everyday languages he uses to program are implemented on the most fundemental level. I will present him with the following proposal and assertain his thoughts on a series of questions to dictate the direction and design of my project.
+
+My aim is to design a 16 bit processor with a RISC instruction set and the capability to execute complex programs such as tetris whilst interfacing with I/O devices such as a keyboard to handle input. I will build the suit of tools required to emulate the behaviour of such a processor. Firstly, a virtual machine, able to emulate the hardware of my processor and execute machine code programs with the correct clock timing and behaviour. This will include a simple GUI that reflects the contents of VRAM (Video RAM) allowing images and information to be communicated to the user.
+
+Then, I will design the syntax of an assembly language that represents the machine code instructions of the processor's instruction set, and a multi-pass assembler to compile this down into binary machine code. The assembler should be able to calculate the required offsets of branch instructions from the position of labels in the source code, and potentially handle macro instruction expansions. (where pseudo-instructions represented by mneumonics can be defined - which at compile time are substituted for a list of fundemental instructions that carry out that defined task).
+
+Finally, I will design a high level language with syntax similar to C and features such as iteration, procedures \& methods, selective statements, static typing, variables, references, and pointers. The experience of programming in this language should be familiar to anyone with programming experience, however remove some of the higher level abstractions typical languages offer, providing insight into the manner in which features are implemented. 
+
 \subsubsection{Client Interview}
+\label{sec:Interview}
+I will interview my client to get his views on a number of questions regarding the design of my project, including the processor design and instruction set; the assembly language syntax and   machine code abstractions (macros and labels); and finally the higher level language syntax and features (OOP, first order functions, etc...).  
+\begin{enumerate}
+    \item \textbf{Instruction Set Architecture \& Assembler}
+        \begin{itemize}
+            \item Do you have any low level experience? \\
+                \textit{"I used assembly when writing a driver a few years back, but I've not gone much lower level than that. Although I can remember some theory from University."}
+            \item What architecture did you use, and what were your experiences using it? \\
+                \textit{"I was migrating a driver in x86 to ARM so I've touched on both. x86 is definitely more powerful, but that does mean it has a steeper learning curve."}
+            \item Did you prefer working with a CISC (x86) or RISC (arm) Instruction Set? \\
+                \textit{"I tend to prefer RISC because the fewer instructions mean that those that are present tend to be much more carefully thought out, it's also just generally easier to program without flipping back to the documentation every 5 minutes."}
+            \item Have you ever programmed for a Harvard architecture computer? \\
+                \textit{"Most ARM processor tend to run on a Harvard architecture, although the assembly language hides most of that anyway so it's not something I really have to worry about."}
+            \item What in particular did you like about the syntax of x86 or arm assembly?\\
+                \textit{"They're both quite similar aside from their register names. x86 uses eax, ebx - but arm uses r0, r1.  Which I think makes more sense. I think x86 has longer menumonics as well - although that's probably because of its larger instruction set."}
+            \item When writing assembly do you find yourself using labels or macro instructions?\\
+                \textit{"Labels are vital, I use them everywhere. But for a RISC processor like arm - macro instructions provided by the assembler can be really helpful - they cut out a lot of the tedious programming when you write the same thing over and over."}
+            \item Would you prefer to write assembly for a 16-bit or an 8-bit system? \\
+                \textit{"I would prefer a 16-bit system because of the flexibility in representing large or precise numbers which you just can't do with an 8-bit system. It lets you worry less about overflow and underflow and all the quirks of binary maths."}
+        \end{itemize}
+        Takeaways:
+        \begin{enumerate}
+            \item My client favours a RISC instruction set, particularly the carefully considered instructions. I should take time when designing my instruction set to ensure there is enough breadth to cover all the desired functionality in an effective manner that is convenient to program in.
+            \item My assembly language's instructions should abstract away the quirks of the Harvard architecture's seperate data and instruction memories - meaning my client will have more transferable experience when programming in my langauge.
+            \item Registers should be named logically, either  alphabetically or numerically, e.g. 'r0, r1, r2, ...' or 'a, b, c, ...'.
+            \item My client would prefer a 16-bit system.
+        \end{enumerate}
+    \item \textbf{Compiler \& High Level Language}
+        \begin{itemize}
+            \item When you write code, do you prefer an Object Oriented or Procedural Style? \\
+                \textit{"I like the flexibility of the procedural approach, although I tend to write cleaner code when I use OOP. I just think it's too restrictive for smaller systems."}
+            \item Do you prefer a simpler syntax like python, or something more like C? \\
+                \textit{"I've been coding in Go recently for work and I like their approach. It's got the unambigious syntax of C with the flexibility in how you format your code, but they've also simplified the type system so you don't have to think about integer sizes or pointers in strings."}
+            \item Would you like my language to have a simlar syntax to preexisting langauges, or to try something new? \\
+                \textit{"I think it's important a language is readable to someone with no experience programming in it, so I wouldn't change the format too much. But it's nice to try some new things, like what go did with goroutines, or rust with the borrow checker."}
+            \item If you could design your own language, what features would be most important to you? \\
+                \textit{"I think good error messages go a long way into improving my experience with a language. They're often overlooked when you're writing a language, but for someone just learning how to code, they're make or break. I'd also say a good type system, Go and Java have pretty good approaches, although when you're writing something lower level you need that extra information about the size of your variables they just don't offer. What Rust does with it's numeric types is good, although I think their approach to strings needs refining."}
+        \end{itemize}
+        Takeaways:
+        \begin{enumerate}
+            \item My language should be a primarily procedural langauge, however offer optional elements of object oriented programming such as classes and interfaces to help organise programs.
+            \item My programming language should use the C like syntax elements of curly braces and semi colons as they offer more flexibility when formatting code. 
+            \item Without straying too far from the norms, I should consider alternative aproaches to syntax and langage features in order to differentiate my language, aggregating positive elements of other systems.
+            \item My compiler should produce specific and actable error messages that are actually helpful to a programmer. This may include information on how to approach correcting such an error and its location in the source code. 
+            \item A strong type system is important, It should abstract the implementation details of compound data structures such as strings, however still offer the flexibility required when writing lower level programs. For example specifying an integer size or whether it is signed or unsigned.
+        \end{enumerate}
+    \item \textbf{Virtual Machine}
+        \begin{itemize}
+            \item Have you ever used a Virtual Machine before? \\
+                \textit{"I've used a Gameboy emulator before, but never anything for coding. I just haven't had the need."}
+            \item What features would you expect if you were using developing using a virtual machine to test your code \\
+                \textit{"I think a good debugger is important, certainly one showing the contents of RAM, register values, and the current instruction being executed. With maybe the ability to step through a program one instruction at a time setting breakpoints."}
+        \end{itemize}
+        Takeaways:
+        \begin{enumerate}
+            \item My virtual machine should include a comprehensive debugger for testing programs, you should be able to check the internal state of the computers memory and registers to determine whether the program is functioning as intended.
+        \end{enumerate}
+\end{enumerate}
+
+This interview has affirmed that the direction in which to take my project is that of a simpler RISC processor with carefully considered instructions, relying more on macro instructions provided by the assembler to improve the development experience rather than on the hardware itself. My client also suggested a procedural language structure with syntax similar to C, a common trend with lower level languages. He also emphasised the importance of a well considered type system and error messages, so these should have careful consideration in my design section. Finally, due to the difficulty of testing machine code programs, a debugging mode in the virtual machine would greatly improve the experience of my client when writing assembly code.
+
+\newpage
 \subsection{Objectives}
+\begin{longtable}{ | p{2cm} | p{4cm} | p{5cm} | p{4cm} | } 
+    \hline
+        Objective & Requirement & Justification & Deliverables \\ 
+    \hline
+        1.0 ISA \& Assembler & & & \\ 
+    \hline
+        1.1 & 
+        The processor should implement a RISC (Reduced Instruction Set Computer) design philosophy. 
+        & A RISC instruction set allows more focus to be placed on the software side (the domain of this NEA) and results in faster and more efficient execution of it's instructions resulting in strong performance benefits, especially when a user isn't as familiar with the instruction set of the system. (Client Interview 1.1) 
+        & \\
+  \hline
+        1.2 & 
+        The processor should use a Harvard computer architecture where data and instructions are stored in seperate memories. & 
+        Data and instructions can be fetched during the same processor cycle, so execution is more time efficient  and emulation easier (University of Washington MIPS Computer 1.)
+        & \\
+  \hline
+        1.3 & 
+        My assembly language should support 3 address operands and hide the need to address data and instructions from different memories.& 
+        3 address operands is the programming standard for both arm and x86, pre-established instruction sets programemrs are already familiar with. (Client Interview 1.2)
+        & 
+        Assembly instructions should take 3 operands: a destination register followed by 1-2 source registers. Programmers should interface with the branch and load instructions in the same manner when addressing instructions or data.\\
+  \hline
+        1.4 & 
+        My assembler should be able to calculate offsets of branch instructions from the position of labels within the source code. & 
+        Labels provide a necessary convenience for programmers implement branching, selective statements, or functions without having to manually calculate memory offests. (The Hack Computer, The University of Washington MIPS Computer, Client Interview) & 
+        My assembler should be able to replace all occurences of an ASCII label in the assembly source code with calculated offests from the current instruction to that label.\\
+  \hline
+        1.5 & 
+        My assembler should provide a number of macro instructions that perform common tasks (e.g. pushing an address to the stack) that are not otherwise specified in the ISA. &
+        Macro instructions minimise the need for programmers to repeat chunks of code to perform common tasks such as pushing values to the stack or calling functions. (The Hack Computer 2., Client Interview) & 
+        The assembler should substitute compound instructions such as \texttt{call} and \texttt{ret} for a list of machine code instructions that perform the same task.\\
+    \hline
+        1.6 & 
+        My pocessor should have the following internal registers: 16 general purpose registers, a Delay timer, Program Counter, and Stack Pointer.  &
+        Prioritising registers over RAM improves processor performance as calculations can be performed with reduced latency. A delay timer simplifies the process of timing CPU operations, and a memory-resident address stack simplifies the process of calling and returning from functions. (Austin Moorlan's CHIP-8 Emulator, Client Interview 1.3)& 
+        My processor should have 16 general purpose registers (r0-rF), a stack pointer (SP), program counter (PC), and delay timer (DT).\\
+    \hline
+        1.7 & 
+        My CPU should operate with a word length of 16-bits. &
+        A 16-bit word length allow more bits to be processed in a single cycle than an 8-bit system, and allows 16-bit instructions to be fetched within a single cycle improving performance. 16-bits can also represent numbers of a greater magnitude or precision using floating point representation than 8-bits mitigating the prevelance of overflow errors. (Client Interview 1.4) &
+        Registers, ALU operations, memory locations and busses should all operate on 16-bit values.\\
+    \hline
+        2.0 Compiler & 
+        &
+        & 
+       \\
+    \hline
+        2.1 & 
+        The syntax of my language should follow C-like standards with semi colons and braces rather than relying on indentation. &
+        This permits easier compilation and more flexibility when formatting code, as well as reprorting errors such as an unterminated brace at compile time (unlike incorrect indentation which may not be detected until debugging) (Client Interview 2.2) & 
+        Lines should be terminated using a semi-colon, and curly-braces used to signify code blocks in selective or iterative expressions rather than indentation.\\
+    \hline
+        2.2 & 
+        The programming language should be statically typed. &
+        A type system results in robust programs with type-errors thrown at compile time rather than during execution, meaning errors like accidentally reassigning the type of a variable will be detected by the compiler and programs are easier to debug. Furthermore compilation becomes easier with statically typed variables as their size in memory is predetermined. (Monkey.2, Jack.4, Client Interview 2.5) & 
+        My syntax should have support for signed and unsigned integers, strings, and integers of different sizes. The \texttt{let} keyword should be used when declaring a variable and require the type to be specified alongside its identifier. \\
+    \hline
+\end{longtable}
+\newpage
