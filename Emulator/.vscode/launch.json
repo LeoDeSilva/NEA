@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/ldesilva/Documents/Personal/Coding/ALevel/NEA/Prototyping/Emulator",
+      "program": "/Users/ldesilva/Documents/Personal/Coding/ALevel/NEA/Prototyping/Emulator/build/Debug/outDebug"
+    }
+  ]
+}
