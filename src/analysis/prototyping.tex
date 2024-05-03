@@ -1,0 +1,115 @@
+\subsection{Prototyping}
+There are 3 main areas I am unsure how to implement, and will need to explore further through prototyping: the process of loading a binary machine code program, and stepping through it instruction by instruction. The data structures and relationships in which I will store lexed tokens and parsed nodes, and finally the process of converting an ASCII program into a list of Tokens (Lexing) and parsing those tokens into an Abstract Syntax Tree. I will also use this prototyping process to help inform which language I use to code this project (the primary options being C or Rust for their low level support)
+
+\subsubsection{Loading Binary Programs}
+
+\begin{lstlisting}[language=C]
+#include "stdio.h"
+#include "stdint.h"
+
+#define MEM_CAPACITY 4096
+
+struct CHIP8 {
+    uint8_t memory[MEM_CAPACITY];
+    uint16_t pc;
+    uint8_t hlt;
+};
+
+void emulate_cycle(struct CHIP8 *chip8) {
+    // fetch the 2 byte instruction from memory (MSB: pc, LSB: pc+1) and store in a 16-bit unsigned int
+    uint16_t instruction = (chip8->memory[chip8->pc] << 8) | chip8->memory[chip8->pc+1];
+    chip8->pc += 2;
+
+    printf("0x%04x ", chip8->pc);
+
+    // bitmask the instruction to extract the opcode (first nibble) 
+    switch (instruction & 0xF000) {
+        case 0x0000:
+            printf("HLT");
+            chip8->hlt = 1;
+            break;
+
+        case 0x1000:
+            printf("JMP");
+            break;
+
+        case 0x2000:
+            printf("CALL");
+            break;
+
+        case 0x3000:
+            printf("SEQ"); 
+            break;
+
+        case 0x4000:
+            printf("SNE");
+            break;
+
+        case 0x6000:
+            printf("SET");
+            break;
+
+        case 0x7000:
+            printf("ADD");
+            break;
+    }
+
+    printf(": 0x%04x\n", instruction);
+}
+
+int main(int argc, char *argv[]) {
+    // exit if user hasn't specified a ROM
+    if (argc < 2) {
+        printf("error: no input ROM\n");
+        return 1;
+    }
+
+    // initialise CHIP8 (memory and pc) values to 0
+    struct CHIP8 chip8;
+    chip8.pc = 0;
+    for (int i = 0; i < 4096; i++)
+        chip8.memory[i] = 0;
+
+    // read binary stream from ROM into chip-8 memory
+    FILE *ptr;
+    ptr = fopen(argv[1], "rb");
+
+    fread(chip8.memory, sizeof(chip8.memory), 1, ptr);
+
+    // simulate CPU cycles
+    while(chip8.hlt != 1) {
+        emulate_cycle(&chip8);
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+The ROM I am using to test this program is an example on the CHIP-8 archive. \texttt{https://johnearnest.github.io/chip8Archive/}.
+
+\begin{lstlisting}
+$ gcc main.c -o main && ./main "roms/Octojam 9 Title.ch8"
+0x0002 SET: 0x6010
+0x0004 SET: 0x620b
+0x000e SNE: 0x4121
+0x0010 ADD: 0x7008
+0x0012 SNE: 0x4121
+0x0014 SET: 0x6100
+0x0016 SEQ: 0x3030
+0x0018 JMP: 0x1206
+0x001a CALL: 0x23e6
+[...]
+0x01e0 SNE: 0x4d07
+0x01e2 SET: 0x6d00
+0x01e4 CALL: 0x23ea
+0x01e6 JMP: 0x1264
+0x01e8 SET: 0x6f14
+0x01ee SEQ: 0x3f00
+0x01f0 JMP: 0x13ea
+0x01f2 SET: 0x6f03
+0x01f6 HLT: 0x00ee
+\end{lstlisting}
+
+\subsubsection{Compiler Data Structures}
+\subsubsection{Lexer}
+\subsubsection{Parser}

@@ -1,8 +1,8 @@
 \section{Analysis}
 \subsection{Problem Defenition}
-The goal of this project is to design the hardware specification for a custom CPU, and develop the suite of tools required for a programmer to write programs for this processor. This will involve writing an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) and its implementation in hardware, considering the internal registers, system clock, main memory, and fetch execute cycle.
+The goal of this project is to design the hardware specification for a custom CPU, and develop the suite of tools required for a programmer to write programs for this processor. This will involve writing an Emulator (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) considering the internal registers, system clock, main memory, and fetch execute cycle.
 
-The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware behaviour required to execute them with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. This will require compiler optimisations in the produced object code; complex data structures such as arrays, objects and strings; conditional and iterative expressions; and finally functions and procedures. All together, the processor and suite surrounding it should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with I/O peripherals such as a keyboard or speaker.
+The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware behaviour required to execute them with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. The compiler will require compiler optimisations in the produced object code; data structures such as arrays, objects and strings; conditional and iterative expressions; and finally functions and procedures. All together, the processor and suite surrounding it should be capeable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with I/O peripherals such as a keyboard or speaker.
 
 \subsection{Background to the Problem Area}
 I have a keen curiosity around the lower level elements of software development, and this project will help me understand how the everyday langauges I use to program are implemented from the processor level upwards. It will look in detail at the fundemental architecture of modern computing systems and how they are developed, looking in particular at the process of designing a processor and corresponding machine code specification with an assembler and compiler to allow a programmer to write programs to run on this computer. Below I will perform some initial research into what these 4 components of the system would entail:
@@ -493,68 +493,10 @@ Then, I will design the syntax of an assembly language that represents the machi
 
 Finally, I will design a high level language with syntax similar to C and features such as iteration, procedures \& methods, selective statements, static typing, variables, references, and pointers. The experience of programming in this language should be familiar to anyone with programming experience, however remove some of the higher level abstractions typical languages offer, providing insight into the manner in which features are implemented. 
 
-\subsubsection{Client Interview}
-\label{sec:Interview}
-I will interview my client to get his views on a number of questions regarding the design of my project, including the processor design and instruction set; the assembly language syntax and   machine code abstractions (macros and labels); and finally the higher level language syntax and features (OOP, first order functions, etc...).  
-\begin{enumerate}
-    \item \textbf{Instruction Set Architecture \& Assembler}
-        \begin{itemize}
-            \item Do you have any low level experience? \\
-                \textit{"I used assembly when writing a driver a few years back, but I've not gone much lower level than that. Although I can remember some theory from University."}
-            \item What architecture did you use, and what were your experiences using it? \\
-                \textit{"I was migrating a driver in x86 to ARM so I've touched on both. x86 is definitely more powerful, but that does mean it has a steeper learning curve."}
-            \item Did you prefer working with a CISC (x86) or RISC (arm) Instruction Set? \\
-                \textit{"I tend to prefer RISC because the fewer instructions mean that those that are present tend to be much more carefully thought out, it's also just generally easier to program without flipping back to the documentation every 5 minutes."}
-            \item Have you ever programmed for a Harvard architecture computer? \\
-                \textit{"Most ARM processor tend to run on a Harvard architecture, although the assembly language hides most of that anyway so it's not something I really have to worry about."}
-            \item What in particular did you like about the syntax of x86 or arm assembly?\\
-                \textit{"They're both quite similar aside from their register names. x86 uses eax, ebx - but arm uses r0, r1.  Which I think makes more sense. I think x86 has longer menumonics as well - although that's probably because of its larger instruction set."}
-            \item When writing assembly do you find yourself using labels or macro instructions?\\
-                \textit{"Labels are vital, I use them everywhere. But for a RISC processor like arm - macro instructions provided by the assembler can be really helpful - they cut out a lot of the tedious programming when you write the same thing over and over."}
-            \item Would you prefer to write assembly for a 16-bit or an 8-bit system? \\
-                \textit{"I would prefer a 16-bit system because of the flexibility in representing large or precise numbers which you just can't do with an 8-bit system. It lets you worry less about overflow and underflow and all the quirks of binary maths."}
-        \end{itemize}
-        Takeaways:
-        \begin{enumerate}
-            \item My client favours a RISC instruction set, particularly the carefully considered instructions. I should take time when designing my instruction set to ensure there is enough breadth to cover all the desired functionality in an effective manner that is convenient to program in.
-            \item My assembly language's instructions should abstract away the quirks of the Harvard architecture's seperate data and instruction memories - meaning my client will have more transferable experience when programming in my langauge.
-            \item Registers should be named logically, either  alphabetically or numerically, e.g. 'r0, r1, r2, ...' or 'a, b, c, ...'.
-            \item My client would prefer a 16-bit system.
-        \end{enumerate}
-    \item \textbf{Compiler \& High Level Language}
-        \begin{itemize}
-            \item When you write code, do you prefer an Object Oriented or Procedural Style? \\
-                \textit{"I like the flexibility of the procedural approach, although I tend to write cleaner code when I use OOP. I just think it's too restrictive for smaller systems."}
-            \item Do you prefer a simpler syntax like python, or something more like C? \\
-                \textit{"I've been coding in Go recently for work and I like their approach. It's got the unambigious syntax of C with the flexibility in how you format your code, but they've also simplified the type system so you don't have to think about integer sizes or pointers in strings."}
-            \item Would you like my language to have a simlar syntax to preexisting langauges, or to try something new? \\
-                \textit{"I think it's important a language is readable to someone with no experience programming in it, so I wouldn't change the format too much. But it's nice to try some new things, like what go did with goroutines, or rust with the borrow checker."}
-            \item If you could design your own language, what features would be most important to you? \\
-                \textit{"I think good error messages go a long way into improving my experience with a language. They're often overlooked when you're writing a language, but for someone just learning how to code, they're make or break. I'd also say a good type system, Go and Java have pretty good approaches, although when you're writing something lower level you need that extra information about the size of your variables they just don't offer. What Rust does with it's numeric types is good, although I think their approach to strings needs refining."}
-        \end{itemize}
-        Takeaways:
-        \begin{enumerate}
-            \item My language should be a primarily procedural langauge, however offer optional elements of object oriented programming such as classes and interfaces to help organise programs.
-            \item My programming language should use the C like syntax elements of curly braces and semi colons as they offer more flexibility when formatting code. 
-            \item Without straying too far from the norms, I should consider alternative aproaches to syntax and langage features in order to differentiate my language, aggregating positive elements of other systems.
-            \item My compiler should produce specific and actable error messages that are actually helpful to a programmer. This may include information on how to approach correcting such an error and its location in the source code. 
-            \item A strong type system is important, It should abstract the implementation details of compound data structures such as strings, however still offer the flexibility required when writing lower level programs. For example specifying an integer size or whether it is signed or unsigned.
-        \end{enumerate}
-    \item \textbf{Virtual Machine}
-        \begin{itemize}
-            \item Have you ever used a Virtual Machine before? \\
-                \textit{"I've used a Gameboy emulator before, but never anything for coding. I just haven't had the need."}
-            \item What features would you expect if you were using developing using a virtual machine to test your code \\
-                \textit{"I think a good debugger is important, certainly one showing the contents of RAM, register values, and the current instruction being executed. With maybe the ability to step through a program one instruction at a time setting breakpoints."}
-        \end{itemize}
-        Takeaways:
-        \begin{enumerate}
-            \item My virtual machine should include a comprehensive debugger for testing programs, you should be able to check the internal state of the computers memory and registers to determine whether the program is functioning as intended.
-        \end{enumerate}
-\end{enumerate}
-
-This interview has affirmed that the direction in which to take my project is that of a simpler RISC processor with carefully considered instructions, relying more on macro instructions provided by the assembler to improve the development experience rather than on the hardware itself. My client also suggested a procedural language structure with syntax similar to C, a common trend with lower level languages. He also emphasised the importance of a well considered type system and error messages, so these should have careful consideration in my design section. Finally, due to the difficulty of testing machine code programs, a debugging mode in the virtual machine would greatly improve the experience of my client when writing assembly code.
+\input{src/analysis/interview.tex}
 
 \newpage
 \input{src/analysis/objectives.tex}
 \newpage
+
+\input{src/analysis/prototyping.tex}
