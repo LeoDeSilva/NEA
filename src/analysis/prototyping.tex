@@ -1,7 +1,17 @@
 \subsection{Prototyping}
-There are 3 main areas I am unsure how to implement, and will need to explore further through prototyping: the process of loading a binary machine code program, and stepping through it instruction by instruction. The data structures and relationships in which I will store lexed tokens and parsed nodes, and finally the process of converting an ASCII program into a list of Tokens (Lexing) and parsing those tokens into an Abstract Syntax Tree. I will also use this prototyping process to help inform which language I use to code this project (the primary options being C or Rust for their low level support)
+There are 3 main areas I am unsure how to implement and will need to explore further through prototyping:
+\begin{enumerate}
+    \item The process of loading a binary machine code program into the emulator, and stepping through it instruction by instruction.
+    \item The data structures with which I will store Tokens and Nodes in the compiler, and from this I will develop a parser for arithmetic expressions to familiarise myself with coding a Lexer and a Parser.
+    \item The process of generating binary machine code from a list of objects representing assembly language instructions.
+\end{enumerate}
 
-\subsubsection{Loading Binary Programs}
+I will also use this prototyping process to help inform which language I use to code my project (the primary options being C or Rust for their low level support). 
+
+\subsubsection{Loading \& Interpreting Binary Programs}
+The first part of my system to prototype was the process of interpreting and decoding a binary file into a series of distinct instructions from which their behaviour can be simulated. I am going to use the CHIP-8 instruction set as a placeholder due to its simplicity, and the fact each instruction is always 2 bytes long making the process of fetching instructions easier. I will also use this to develop my knowledge of C. 
+
+Below is the code for this prototype, It takes in the filename of the ROM as a command line argument, opens the binary file and writes it to the memory array of the emulated CHIP-8 system. From there it enters an infinite loop (terminated only by the halt flag on the CPU) representing the fetch-execute cycle of the system. In each iteration, it fetches the 2 bytes of the instruction and stores it in a 16-bit unsigned integer, bitmasks the instruction to extract the opcode and then enters a case statement to act according to the opcode. For the purposes of this prototype, I just printed the name of each instruction it encounters.
 
 \begin{lstlisting}[language=C]
 #include "stdio.h"
@@ -110,6 +120,376 @@ $ gcc main.c -o main && ./main "roms/Octojam 9 Title.ch8"
 0x01f6 HLT: 0x00ee
 \end{lstlisting}
 
-\subsubsection{Compiler Data Structures}
+Making this prototype exposed one vulnerability in my code and one inconvenience, I did not validate the ROM size before loading it into RAM, this could cause a buffer overflow should the ROM be larger than 4KB, and allow access to protected memory. The inconvenience however was C's default type system and the unintuitive names for variable sizes, for instance a 16-bit unsigned integer is an \texttt{unsigned short} and array of strings a \texttt{char *array[]}. This lead me to include the \texttt{stdint.h} library which offers more explicit alternatives for these names such as a \texttt{uint8\_t} representing an 8 bit unsigned integer. I found this made for cleaner and more easily readable code and I will use this standard throughout my project. 
+
 \subsubsection{Lexer}
+The second prototype encompased two components of the system, a Lexer and a Parser written as a subset of the final program and capable of evaluating arithmetic expressions considering the order of operations. This inital data model represents tokens as enums (rust - similarly to C, does not support typical object oriented programming paradigms, instead seperating the behaviours into enums and structs representing different aspects of a class). I also created a SyntaxError struct which stores a single error message with the intention of expanding upon this in the final lexer to support line number and position within the source code.
+
+\begin{lstlisting}[language={C}]
+// ==== src/token.rs ====
+#[derive(PartialEq, Debug, Clone)]
+pub enum Token {
+    Number(u32),
+    LPAREN,
+    RPAREN,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    EOF,
+}
+
+#[derive(Debug)]
+pub struct SyntaxError {
+    pub msg: String,
+}
+
+impl SyntaxError {
+    fn new(msg: String) -> Self {
+        SyntaxError { msg }
+    }
+}
+\end{lstlisting}
+
+There were 2 approaches I considered for the lexer with regard to the data model: the first represents programs as a list of characters, with a pointer to the current position in the source code that is incremented or decremented as it scans the program. This can lead to unpredictable side effects and repeated code since everytime the pointer is used, you must ensure it has not exceeded the bounds of the list. Furthermore due to the nature of parsing multicharacter tokens such as numbers and strings, the behaviour for incrementing this pointer is not uniform and can be difficult to keep track of in the program, making code very difficult to debug. 
+
+Instead I opted to use rust's native \texttt{Peekable} class which encapsulates this behaviour at the cost of more complex variable lifetimes and memory management. I pass a reference to the Lexer struct into each subroutine to hold the current state of the program.
+
+This program works by iterating over the source code character by character and appending its Token representation onto a Vector containing the tokenised source code. When it encounters a number, it instead appends that first digit to a numeral string and continues iterating over all consecutive digits until it has built up a numeral string representing this number. 
+
+\begin{lstlisting}[language={C}]
+// ==== src/lexer/lexer.rs ====
+use std::{iter::Peekable, str::Chars};
+use super::token::{Token, SyntaxError};
+
+
+pub struct Lexer<'a> {
+    program: Peekable<Chars<'a>>,
+}
+
+impl<'a> Lexer<'a> {
+    pub fn new(program: &'a str) -> Self {
+        Lexer {
+            program: program.chars().peekable(),
+        }
+    }
+
+    pub fn read_char(&mut self) -> Option<char> {
+        self.program.next()
+    }
+
+    pub fn peek_char(&mut self) -> Option<&char> {
+        self.program.peek()
+    }
+
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, SyntaxError> {
+        let mut tokens: Vec<Token> = Vec::new();
+
+        // iterate over all characters in the source code 
+        while let Some(ch) = self.read_char() {
+            match ch {
+                ch if ch.is_whitespace() => {}
+                '(' => tokens.push(Token::LPAREN),
+                ')' => tokens.push(Token::RPAREN),
+
+                '+' => tokens.push(Token::ADD),
+                '-' => tokens.push(Token::SUB),
+                '*' => tokens.push(Token::MUL),
+                '/' => tokens.push(Token::DIV),
+
+                '0'..='9' => {
+                    // parse a numebr by collecting consecutive digits in the source code 
+                    // into the 'numeral' string
+                    let mut numeral = String::new();
+                    while let Some(ch) = self.peek_char() {
+                        if !ch.is_numeric() {
+                            break;
+                        }
+
+                        numeral.push(self.read_char().unwrap());
+                    }
+
+                    tokens.push(Token::Number(
+                        (ch.to_string() + &numeral).parse::<u32>().unwrap(),
+                    ));
+                }
+
+                _ => {
+                    return Err(SyntaxError::new(format!(
+                        "SyntaxError: invalid character in source code '{}'",
+                        ch
+                    )))
+                }
+            }
+        }
+
+        tokens.push(Token::EOF);
+        Ok(tokens)
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+// ==== src/main.rs ====
+mod lexer;
+use lexer::{lexer::Lexer, token::Token};
+
+fn main() {
+    let program = "(1-20)/(2-3)";
+    let mut lexer = Lexer::new(program);
+
+    let tokens: Vec<Token> = match lexer.tokenize() {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            eprintln!("{}", err.msg);
+            std::process::exit(1);
+        },
+    };
+
+    println!("{:?}", tokens);
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+$ cargo run
+>> (-10 + -2/3)/10 - 2
+LPAREN, SUB, Number(10), ADD, SUB, Number(2), DIV, Number(3), RPAREN, DIV, Number(10), SUB, Number(2), EOF
+\end{lstlisting}
+
 \subsubsection{Parser}
+The second component of this system is the parser to convert the tokenised source code into an abstract syntax tree representing the expression. Of the 2 main parsing methods, I chose a Pratt parser for this prototype due to the clear control flow when compared to a bottom-up or recursive descent parser. Since each operation in a pratt parser is assigned a binding prefernce to determine the order of operations, I wrote a subroutine to get the pratt parser precedence from any operation Token.  
+
+\begin{lstlisting}[language=C]
+// ==== src/lexer/token.rs ====
+
+// convert a Token enum into a numerical value representing 
+// the pratt parser precedence of that operation
+impl Token {
+    pub fn get_precedence(&self) -> i32 {
+        match self {
+            Token::ADD | Token::SUB => 10,
+            Token::MUL | Token::DIV => 20,
+            _ => -1,
+        }
+    }
+} 
+\end{lstlisting}
+
+Since rust does not support inheritance, I used the relationships between enums to achieve a similar effect. The data model for parsed Nodes uses enums for the top level expressions (ie. expressions that alone would make for a valid program - a valid program could be any of, prefix: "-10", literal: "3", infix: "1+2"). 
+
+These can take recursive parameters (contained within a \texttt{Box<>} to allocate them onto the heap and permit this recursive behaviour). At the core of the nested Infix and Prefix expressions (an infix expression is in the form a+b, and prefix -a) are Literals, these are the smallest units of the program (in this case only unsigned integers). 
+
+Decomposing expressions into multiple seperate enums (Prefix, Operation, Literal) reduces heap memory useage and ensures cleaner and more robust code since the parameters for each Node is limited to only what is valid, meaning that the nodes themselves will not have to be validated during code generation in the compiler. 
+
+\begin{lstlisting}[language=C]
+// ==== src/parser/ast.rs ====
+use crate::lexer::token::Token;
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Expression {
+    LiteralExpr(Literal),
+    PrefixExpr(Prefix, Box<Expression>),
+    InfixExpr(Box<Expression>, Operation, Box<Expression>),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Literal {
+    Number(i32),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Prefix {
+    Minus,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Operation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+// implement the try_from() property to conveniently convert Tokens 
+// into Operation types
+impl TryFrom<Token> for Operation {
+    type Error = &'static str;
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        match token {
+            Token::ADD => Ok(Operation::Add),
+            Token::SUB => Ok(Operation::Subtract),
+            Token::MUL => Ok(Operation::Multiply),
+            Token::DIV => Ok(Operation::Divide),
+            _ => Err("Invalid Type: can only convert operators")
+        } 
+    }
+} 
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+use super::ast::{Expression, Literal, Operation, Prefix};
+use crate::{lexer::token::SyntaxError, Token};
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    pos: usize,
+    tok: Token,
+}
+
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+        let tok = tokens[0].clone();
+        Parser {
+            tokens: tokens,
+            pos: 0,
+            tok: tok,
+        }
+    }
+
+    fn advance(&mut self) {
+        if self.pos + 1 < self.tokens.len() {
+            self.pos += 1;
+            self.tok = self.tokens[self.pos].clone();
+        }
+    }
+
+    fn retreat(&mut self) {
+        self.pos -= 1;
+        self.tok = self.tokens[self.pos].clone();
+    }
+
+    // throw a SyntaxError if the parser encounters an unexpected token (!= t)
+    fn assert(&self, t: Token) -> Result<(), SyntaxError> {
+        if self.tok != t {
+            return Err(SyntaxError::new(format!(
+                "SyntaxError: expected to encounter token of type '{:?}', instead encountered '{:?}'",
+                t,
+                self.tok,
+            )))
+        }
+        Ok(())
+    }
+
+    pub fn parse(&mut self) -> Result<Expression, SyntaxError> {
+        return self.parse_expression(0);
+    }
+
+    fn parse_expression(&mut self, rbp: i32) -> Result<Expression, SyntaxError> {
+        // parse the left hand side of an infix operation and determine the 
+        // precedence of the next operation
+        let mut lhs = match self.parse_atom() {
+            Ok(lhs) => lhs,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        self.advance();
+        let mut peek_rbp = self.tok.get_precedence();
+
+        // if an operation token is encountered, parse the tokens as an infix expression, and 
+        // continue to parse to the lhs if operators with a higher precedence than rbp (e.g. *, /)
+        // are encountered - order of operations.
+        while self.pos < self.tokens.len() && peek_rbp > rbp {
+            lhs = match self.parse_infix(lhs, self.tok.clone()) {
+                Ok(lhs) => lhs,
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+
+            peek_rbp = self.tok.get_precedence();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_infix(&mut self, lhs: Expression, op: Token) -> Result<Expression, SyntaxError> {
+        self.advance();
+
+        // recursively pass the rhs which iteslf can be an expression 
+        let rhs = match self.parse_expression(op.get_precedence() + 1) {
+            Ok(rhs) => rhs,
+            Err(e) => return Err(e),
+        };
+
+        Ok(Expression::InfixExpr(
+            Box::new(lhs),
+            Operation::try_from(op).unwrap(),
+            Box::new(rhs),
+        ))
+    }
+
+    fn parse_atom(&mut self) -> Result<Expression, SyntaxError> {
+        let expr = match self.tok {
+            Token::Number(n) => Expression::LiteralExpr(Literal::Number(n as i32)),
+
+            Token::SUB => {
+                // parses the prefix operation (-): calls parse_expression() with rbp 40
+                // meaning the rhs can be an expression itself however only one with precedence > 40
+                // (only parenthesised expressions)
+                self.advance();
+                let expr = match self.parse_expression(40) {
+                    Ok(expr) => expr,
+                    Err(e) => return Err(e),
+                };
+
+                self.retreat();
+                Expression::PrefixExpr(Prefix::Minus, Box::new(expr))
+            }
+
+            Token::LPAREN => {
+                self.advance();
+                // call parse_expression() with rbp 0 since any combination of operations can be 
+                // contained within parentheses and parsed as inside
+                let expr = match self.parse_expression(0) {
+                    Ok(expr) => expr,
+                    Err(e) => return Err(e),
+                };
+
+                match self.assert(Token::RPAREN) {
+                    Ok(_) => {},
+                    Err(e) => return Err(e),
+                };
+
+                expr
+            }
+
+            _ => return Err(SyntaxError::new(
+                format!(
+                    "SyntaxError: unexpected token enocountered when parsing infix expression '{:?}'",
+                    self.tok,
+                )
+            )),
+        };
+
+        Ok(expr)
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+$ cargo run
+    Compiling parser v0.1.0 
+    Finished dev [unoptimized + debuginfo] target(s) in 1.14s
+    Running `target/debug/parser`
+
+>> (-10 + -2/3)/10 - 2
+InfixExpr(
+    InfixExpr(
+        InfixExpr(
+            PrefixExpr(Minus, LiteralExpr(Number(10))), 
+            Add, 
+            InfixExpr(
+                PrefixExpr(Minus, LiteralExpr(Number(2))), 
+                Divide, 
+                LiteralExpr(Number(3))
+            )
+        ), 
+        Divide, 
+        LiteralExpr(Number(10))
+    ), 
+    Subtract, 
+    LiteralExpr(Number(2))
+)
+\end{lstlisting}
