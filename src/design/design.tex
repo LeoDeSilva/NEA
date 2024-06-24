@@ -1,1 +1,35 @@
 \section{Design}
+
+\subsection{High Level Overview}
+
+The system will comprise 3 parts required to simulate and program a proprietary processor. It will include a virtual machine to emulate the execution of binary machine code catridges, an assembler to translate higher level assembly code into machine code, and finally a compiler for a higher level language to easily program complex applications to run on the processor.
+
+The virtual machine consists of two main processes, the debugger and interpreter. The interpreter will continiously step through memory, decoding and executing instructions sequentially whilst displaying the contents of VRAM through the pixel display.
+
+\shadowbox{
+    \includegraphics[width=15cm]{Virtual Machine Flowchart.png}
+}
+
+\bigskip
+
+The assembler consists of a single pipeline for transforming ASCII assembly programs into binary machine code. The files are loaded into the interpreter which stores their contents in a string. The contents are tokenised and parsed into a sequence of assembly language instructions. These instructions are translated into binary machine code according to the instruction set architecture (defined in \ref{sec:ISADesign}).
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=7cm]{Screenshot 2024-06-24 at 19.15.56.png}
+}
+
+\bigskip
+
+Much like the assembler, the compiler takes an ASCII program, converts it into tokens and parses it into an Abstract Syntax Tree (AST) representing the structure and order of operations of the program. This AST is converted into an internal representation (IR) designed to help easily locate potential optimisations in the source code (e.g. pre-calculating arithmetic or removing redundant code), these optimisations are made and the IR is converted into an intermediate assembly language due to the presence of high level optimisations such as labels and macro-instructions. Finally, this assembly code is inserted into the assembler and the produced machine code is stored as a file on the users computer. 
+
+\bigskip
+
+\shadowbox{
+    \includegraphics[width=10cm]{Screenshot 2024-06-24 at 19.30.50.png}
+}
+
+\subsection{Component Design}
+\subsubsection{Instruction Set Architecture}
+\label{sec:ISADesign}
