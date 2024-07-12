@@ -37,9 +37,7 @@ The core of any instruction set is the Arithmetic Logic Unit (ALU) so I began by
 
 \bigskip
 
-\shadowbox{
-    \includegraphics[width=10cm]{Screenshot 2024-07-09 at 12.35.43.png}
-}
+\includegraphics[width=12cm]{Screenshot 2024-07-12 at 16.47.22.png}
 
 \bigskip
 
@@ -56,15 +54,42 @@ lw r2, [0xb001]
 
 .loop
     // if r2 is 0, break
-    lw r0, 0
+    li r0, 0
     jle r2, r0, .store
 
     add r1, r1, r1
 
-    lw r0, 1
+    li r0, 1
     sub r2, r2, r0
     jmp .loop
 
 .store
     sw r1, [0xb002]
 \end{lstlisting}
+
+\subsubsubsection{ISA Encoding}
+Below is the breakdown of how R/I/J type instructions are represented in binary, broken down into their respective fields. All instructions have a 2-bit opcode which dictates the type of instruction, however only 3 instructions types are defined - leaving the fourth configuration to represent a \texttt{NOP} or \texttt{HALT} instruction. The next 6 bits of the R-type instruction are occupied by the ALU control bits which dictate the operation to be carried out. This is followed by two source registers (inputs to the ALU) and the destination register.
+
+After the I-type opcode, an additional bit dictates whether the instruction is to be a load word (lw) or store word (sw). With a subsequent bit determining whether (for a load word instruction) the source value will be an immediate number, or the corresponding memory address (immediate or RAM[immediate]). Similarly for a store word instruction the next bit dictates whether the immediate field specifies a register holding the address in RAM, or an address by itself (RAM[register], RAM[immediate]).  
+
+Finally, for a J-type instruction 3 bits are used to specify the jump condition (>, =, <) combinations of these bits can produce any condition (e.g. 101: !=, 011: <=). Following these there are two source registers used as inputs to the ALU for the comparison, and a 16 bit memory address to jump to should the condition be met. 
+
+\bigskip
+
+\includegraphics[width=12cm]{Screenshot 2024-07-12 at 23.35.53.png}
+
+\begin{lstlisting}
+li r5, 14
+lw r4, [0xb000]
+sub r6, r5, r4
+jge r6, r4, [0x0101]
+
+01 000 0101 00000000 00001110
+01 010 0100 10110000 00000000
+10 010011 0101 0100 0110
+11 110 0110 0100 00000001 00000001
+\end{lstlisting}
+
+\subsection{Virtual Machine}
+\subsubsection{Data Structures}
+\subsubsection{Algorithms}
