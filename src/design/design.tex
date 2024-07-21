@@ -7,7 +7,7 @@ The system will comprise 3 parts required to simulate and program a proprietary 
 The virtual machine consists of two main processes, the debugger and interpreter. The interpreter will continiously step through memory, decoding and executing instructions sequentially whilst displaying the contents of VRAM through the pixel display.
 
 \shadowbox{
-    \includegraphics[width=15cm]{Virtual Machine Flowchart.png}
+    \includegraphics[width=14cm]{Virtual Machine Flowchart.png}
 }
 
 \bigskip
@@ -32,62 +32,117 @@ Much like the assembler, the compiler takes an ASCII program, converts it into t
 
 \subsection{Component Design}
 \subsubsection{Instruction Set Architecture}
+
+\subsubsubsection{Computer Architecture}
+Registers, Status, PC, MAR.....
+
+\subsubsubsection{Arithmetic and Logic Unit}
 \label{sec:ISADesign}
-The core of any instruction set is the Arithmetic Logic Unit (ALU) so I began by designing an interface for that. There are 2 16-bit inputs to the ALU, which for the purpose of my architecture will only take register values. There are 6 ALU control bits that enable further operations aside from the NOT, AND, and ADD with their own dedicated logic circuits. Different configurations of these control bits can produce various arithmetic operations as detailed in the graphic below.
+The core of any instruction set is the Arithmetic Logic Unit (ALU) so I began by designing an interface for that. I decided on 2 16-bit inputs to the ALU, which for the purpose of my architecture will only take register values. There are 6 ALU control bits that enable further operations aside from the NOT, AND, and ADD with their own dedicated logic circuits. Below is the chip interface diagram for the ALU I will use in this processor.
 
 \bigskip
 
-\includegraphics[width=12cm]{Screenshot 2024-07-12 at 16.47.22.png}
+\shadowbox{
+    \includegraphics[width=6cm]{Screenshot 2024-07-20 at 19.36.41.png}
+}
 
 \bigskip
+
+Different configurations of these 6 ALU control bits can produce different arithmetic and logical operations, detailed in the table below:
+
+\includegraphics[width=11cm]{Screenshot 2024-07-20 at 19.37.03.png}
+% \includegraphics[width=12cm]{Screenshot 2024-07-12 at 16.47.22.png}
+
+% \bigskip
+
+\subsubsubsection{Assembly Language}
 
 I decided to use a MIPS instruction set architecture, minimising the number of instructions supported by the processor. I settled on 3 instruction types: R-type instructions (performing ALU operations on register values), I-type instructions (load and store data between registers and memory), and J-type instructions (conditional jumps to different points in memory). From these 3 types, the following instruction set can be constructed, demonstrated with a program to multiple two numbers stored in memory. (\texttt{'[]'} are used to indicate a memory address):
 
 \begin{lstlisting}[language=C]
-R-type: add, sub, and, or, not
+LI-type: li
 I-type: sw, lw
-J-type: jmp, jlt, jle, jeq, jge, jgt
+R-type: add, sub, and, or, not
+J-type: jmp, jlt, jle, jeq, jge, jgt, jal
 
 // multiply the numbers in memory address 0xb000 and 0xb001, and write the answer to 0xb002
-lw r1, [0xb000]
-lw r2, [0xb001]
+li r0, 0xb000
+lw r1, [r0]
+
+li r0, 0xb001
+lw r2, [r0]
 
 .loop
     // if r2 is 0, break
     li r0, 0
-    jle r2, r0, .store
+
+    li r31, [.store]
+    jle r2, r0, [r31]
 
     add r1, r1, r1
 
     li r0, 1
     sub r2, r2, r0
-    jmp .loop
+
+    li r0, [.loop]
+    jmp [r0]
 
 .store
-    sw r1, [0xb002]
+    li r0, [0xb002]
+    sw r1, [r0]
 \end{lstlisting}
 
-\subsubsubsection{ISA Encoding}
-Below is the breakdown of how R/I/J type instructions are represented in binary, broken down into their respective fields. All instructions have a 2-bit opcode which dictates the type of instruction, however only 3 instructions types are defined - leaving the fourth configuration to represent a \texttt{NOP} or \texttt{HALT} instruction. The next 6 bits of the R-type instruction are occupied by the ALU control bits which dictate the operation to be carried out. This is followed by two source registers (inputs to the ALU) and the destination register.
+\subsubsubsection{Machine Code Encoding}
 
-After the I-type opcode, an additional bit dictates whether the instruction is to be a load word (lw) or store word (sw). With a subsequent bit determining whether (for a load word instruction) the source value will be an immediate number, or the corresponding memory address (immediate or RAM[immediate]). Similarly for a store word instruction the next bit dictates whether the immediate field specifies a register holding the address in RAM, or an address by itself (RAM[register], RAM[immediate]).  
+Below is the breakdown of how R/I/J type instructions are represented in binary, broken down into their respective fields. All instructions have a 2-bit opcode which dictates the type of instruction (and consequentially which of 4 encoding types should be used when decoding the instruction). 
 
-Finally, for a J-type instruction 3 bits are used to specify the jump condition (>, =, <) combinations of these bits can produce any condition (e.g. 101: !=, 011: <=). Following these there are two source registers used as inputs to the ALU for the comparison, and a 16 bit memory address to jump to should the condition be met. 
+\begin{itemize}
+    \item \texttt{00}: LI-type instructions \textit{(to load immediate values into registers)}
+        \begin{itemize}
+            \item \texttt{5-bits rd}: the register in which to store the immediate value.
+            \item \texttt{16-bits im}: a 16-bit signed integer.
+        \end{itemize}
+    \item \texttt{01}: I-type instructions \textit{(to transfer data between CPU registers and RAM)}
+        \begin{itemize}
+            \item \texttt{1-bit lw/sw}: determines whether to load from or write to RAM.
+            \item \texttt{5-bits rd}: the register to store the word loaded from memory, or containing the data to be written.
+            \item \texttt{5-bits rs}: the register containing the address of the location in memory to be read from or written to.
+        \end{itemize}
+    \item \texttt{10}: R-type instructions \textit{(to perform operations between two registers)}
+        \begin{itemize}
+            \item \texttt{6-bits Cin}: the control bits determining the operation to be carried out on the registers in the ALU.
+            \item \texttt{5-bits rd}: the register in which to store the result of ALU operations.
+            \item \texttt{5-bits rs}: the first of two input registers to the ALU.
+            \item \texttt{5-bits rt}: the second of two input registers to the ALU.
+        \end{itemize}
+    \item \texttt{11}: J-type instructions \textit{(to conditionally jump to another instruction in memory)}
+        \begin{itemize}
+            \item \texttt{3-bits <=>}: control bits to determine the jump condition.
+            \item \texttt{1-bit al}: determines whether to store the return address in rd.
+            \item \texttt{5-bits rd}: the register to contain the return address of the jump.
+            \item \texttt{5-bits rt}: the register containing the memory address to jump to.
+        \end{itemize}
+\end{itemize}
+ 
+\bigskip
+
+\includegraphics[width=12cm]{Screenshot 2024-07-21 at 17.47.26.png}
 
 \bigskip
 
-\includegraphics[width=12cm]{Screenshot 2024-07-12 at 23.35.53.png}
+Below is a simple program to demonstrate the process of encoding between assembly language and machine code following the specification above.
 
 \begin{lstlisting}
-li r5, 14
-lw r4, [0xb000]
-sub r6, r5, r4
-jge r6, r4, [0x0101]
+li r5, 14        // 00 00101 00000000 00001110
 
-01 000 0101 00000000 00001110
-01 010 0100 10110000 00000000
-10 010011 0101 0100 0110
-11 110 0110 0100 00000001 00000001
+li r30, 0xb000   // 00 11110 10110000 00000000
+lw r4, [r30]     // 01 0 00100 1110
+
+li r30, [0x010a] // 00 11110 00000001 00001010
+
+// a cmp is a sub without storing the result
+cmp r5, r4       // 10 010011 00000 00101 00100
+jge [r30]        // 11 110 0 00000 11110
 \end{lstlisting}
 
 \subsection{Virtual Machine}
