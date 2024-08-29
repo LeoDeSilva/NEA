@@ -319,13 +319,20 @@ Above is the example program to define a linked list in Jack as provided in the 
 However the reason for differentiating field variables and regular variables, for instance, is due to their lifetimes. A copy of field variables needs to be maintained for each instance of a particular class - wheras other local variables can be freed from memory once their subroutine terminates and they are no longer used.
 
 \subsubsubsection{Implementation}
-The code generation in the Jack language involves scanning through the Abstract syntax tree and for each Node type (e.g. Infix, Selection, Iterative) appending a template of (optimized) assembly language instructions into an array which can then be compiled down into its ASCII representation. A typical example of such compilation would be through the compilation of the statement \texttt{let x = b - 2}. The AST for this is below, and is the data structure that would be passed to the code generator:
+
+\vspace*{-2em}
+\begin{multicols}{2}[\columnsep-0.5em] 
+    The code generation in the Jack language involves scanning through the Abstract syntax tree and for each Node type (e.g. Infix, Selection, Iterative) appending a template of (optimized) assembly language instructions into an array which can then be compiled down into its ASCII representation. A typical example of such compilation would be through the compilation of the statement \texttt{let x = b - 2}. The AST for this is below, and is the data structure that would be passed to the code generator:
+
+    \columnbreak
+
+    \shadowbox{
+        \includegraphics[width=6cm]{Screenshot 2024-04-22 at 18.59.30.png}
+    }
+\end{multicols}
 
 \bigskip
 
-\shadowbox{
-    \includegraphics[width=6cm]{Screenshot 2024-04-22 at 18.59.30.png}
-}
 
 \bigskip
 
