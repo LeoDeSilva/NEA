@@ -45,9 +45,9 @@ Much like the assembler, the compiler takes an ASCII program, converts it into t
 \subsubsection{Instruction Set Architecture}
 
 \subsubsubsection{Computer Architecture}
-Having to balance simplicity with convenience dictated the final design decisions for this computers CPU architecture.  There is 64Kb of memory (65,526 memory locations) specified by 16-bit addresses, requiring a 16-bit Program Counter (PC). The clock speed for the CPU runs at 600Hz. Each instruction is 32-bits, meaning two processor cycles are required to fetch an instruction and store the high and low words in the Current Instruction Register (CIR). 
+Objective 1.1 (implementing a RISC architecture) meant many tradeoffs had to be made between convenience and practicality, There is 64Kb of memory (65,526 memory locations) specified by 16-bit addresses, requiring a 16-bit Program Counter (PC). The clock speed for the CPU runs at 600Hz. Each instruction is 32-bits, meaning two processor cycles are required to fetch an instruction and store the high and low words in the Current Instruction Register (CIR). 
 
-I decided on 32 16-bit general purpose registers, any two of which can be inputs to the ALU, which itself has two outputs - a 16 bit result which can be written to a register or memory depending on the instruction, and a 1 bit zero bit which is set when the result of the calculation is 0.
+I decided on 32 16-bit general purpose registers, any two of which can be inputs to the ALU, which itself has two outputs - a 16 bit result which can be written to a register or memory depending on the instruction, and a 1 bit zero bit which is set when the result of the calculation is 0. 
 
 There are a number of special purpose registers, which, by convention are dedicated an address in memory, one for the stack pointer (SP) and another for the sound timer (ST). There is no dedicated stack and is instead allocated a downwards growing section of memory. The stack stores register values and return addresses when calling functions, however since the instruction set contains no \texttt{call} or \texttt{ret} instructions, this must be performed manually by the programmer. Each cycle the sound timer is non-zero, the computer produces a sound and decrements ST, allowing the length of the noise to be specified.
 
@@ -71,12 +71,12 @@ The core of any instruction set is the Arithmetic Logic Unit (ALU) so I began by
 
 \subsubsubsection{Assembly Language}
 
-I decided to use a MIPS instruction set architecture, minimising the number of instructions supported by the processor. I settled on 3 instruction types: R-type instructions (performing ALU operations on register values), I-type instructions (operations involving both registers and immediate fields), and J-type instructions (unconditional, absolute jumps to locations in memory). From these 3 types, the following instruction set can be constructed, demonstrated with a program to multiple two numbers stored in memory. (\texttt{'[]'} are used to indicate a memory address):
+I decided to use a MIPS instruction set architecture, minimising the number of instructions supported by the processor. I settled on 2 instruction types: R-type instructions (performing ALU operations on register values), I-type instructions (operations involving both registers and immediate fields - includes jump and branch instructions) from these two types, the following instruction set can be constructed, demonstrated with a program to multiple two numbers stored in memory. (\texttt{'[]'} are used to indicate a memory address):
 
 \begin{lstlisting}[language=C]
 R-type: add, sub, and, or, nor, slt, sll, slr
 I-type: addi, andi, ori, lw, sw, bge, bne
-J-type: jmp
+J-type: jmp, jr, jal
 
 // multiply the numbers in memory address 0xb000 and 0xb001, and write the answer to 0xb002
 li r31, 0xb000 // pointer to the start of data memory
@@ -101,7 +101,7 @@ lw r2, 1($r31)
 
 \subsubsubsection{Machine Code Encoding}
 \label{sec:MachineCodeEncoding}
-Below is the breakdown of how R/I/J type instructions are represented in binary, broken down into their respective fields. All instructions have a 4-bit opcode which dictates the type of instruction (and consequentially which of 4 encoding types should be used when decoding the instruction). For the purpose of machine code, L and Ri type instructions are encoded with the same fields.
+Below is the breakdown of how R/I/J type instructions are represented in binary, broken down into their respective fields. All instructions have a 4-bit opcode which dictates the type of instruction (and consequentially which of 2 decoding types should be used when decoding the instruction). In the machine code, Ri, L and J type instructions are encoded with the same operands, however they are each interpreted differently by the processor. 
 
 \begin{itemize}
     \item \texttt{00-xx}: R-type instructions \textit{to perform operations between two registers}
@@ -156,6 +156,36 @@ Since each instruction is 32-bits and contains two words, an instruction must be
 \begin{lstlisting}
     [0]: 0000000000001110
     [1]: 0110110000000101 
+\end{lstlisting}
+
+\subsubsubsection{High Level Language}
+Following on from my client interview, the high level language should take inspiration from Go for its syntax and type system, although perhaps with a greater focus on pointers - due to the additional flexibility they open up for the programmer. I decided on the \texttt{func} keyword to define functions, and \texttt{->} to indicate the return type of a function. I also decided to mandate the data type in a variable declaration (specified by the \texttt{var} keyword, to aid parsing). The syntax for pointers is similar to that of C or C++, pointers are created with the \texttt{*} symbol and dereferenced with \texttt{\&}. Arrays and strings are null terminated and can be indexted using square bracket syntax (which is interchangable with \texttt{\&(array + index)} when working with memory addresses and pointers).
+
+\begin{lstlisting}
+func println(str: char*) {
+    // copy character bytes from string to memory addresss 0x8000+ 
+    // either &() or [] syntax can be used to write to or read from a pointers address
+    for (var ptr: i16 = 0; str[ptr] != 0; ptr++) {
+        var addr: u16* = 0x8000; 
+        &(addr + ptr) = str[ptr];
+    }
+}
+
+func main() -> int {
+    var x: i16 = 10;
+    var y: i16 = 5;
+    var z: i16;
+
+    if (x > y) {
+        z = 1;
+    } else {
+        z = 0;
+    }
+
+    // strings are null terminated
+    var str: char* = "Hello, World!"
+    println(str);
+}
 \end{lstlisting}
 
 \subsection{Virtual Machine}
@@ -222,9 +252,9 @@ PROCEDURE FETCH_EXECUTE
     WHILE (NOT hlt) DO 
         // only begin the next instruction cycle once the previous has finished executing
         IF (elapsed_cycles == 0) THEN 
-            // the first byte in memory is the LSB and the second the MSB
-            // binary shift the MSB 16 places to make room for the LSB
-            UNSIGNED WORD cir = (memory[pc+1] << 16) | memory[pc]
+            // LSB stored before the MSB in memory
+            // binary shift the MSB to fit the LSB
+            WORD cir = (memory[pc+1] << 16) | memory[pc]
             pc += 2
 
             EXECUTE_INSTRUCTION(cir)
@@ -245,7 +275,7 @@ PROCEDURE EXECUTE_INSTRUCTION(u32 instruction)
             UNSIGNED BYTE rd = instruction[16:21]
             UNSIGNED BYTE func = instruction[22:26]
 
-            SIGNED WORD OP() = MAP[func] 
+            SIGNED WORD OP() = HASHMAP[func] 
             registers[rd] = OP(rs, rt)
             elapsed_cycles = 4
             BREAK
@@ -279,14 +309,15 @@ PROCEDURE READ_FILE_INTO_MEMORY()
         THROW "Missing filename argument"
     ENDIF 
 
-    STRING filename = ARGS[1] // get cartridge filename from cli arguments
+    // get cartridge filename from cli arguments
+    STRING filename = ARGS[1] 
 
     // open the file and read in the first word (2 bytes)
     FILE file = OPEN(filename)
 
     // since the file size is in bytes, and iterating through words, SIZE(file)/2
-    FOR (WORD address = 0; address < SIZE(file)/2; address ++) DO
-        memory[address] = READ_WORD(file)
+    FOR (WORD addr = 0; addr < SIZE(file)/2; addr++) DO
+        memory[addr] = READ_WORD(file)
     ENDFOR
 ENDPROCEDURE
 \end{lstlisting}
@@ -298,32 +329,17 @@ The assembler takes in an assembly program as a text file, and outputs the corre
 \begin{lstlisting}
 PROCEDURE assemble() 
     READ TEXT FILE INTO STRING
-    lex()     // COMPILE PROGRAM STRING INTO A TOKEN ARRAY
-    parse()   // COMBINE TOKENS INTO A SERIES OF INSTRUCTIONS
-    compile() // CONVERT INSTRUCTIONS INTO MACHINE CODE
-ENDPROCEDURE
 
-PROCEDURE lex() 
-    ITERATE THROUGH THE PROGRAM CHARACTER BY CHARACTER
-    CREATE A VECTOR OF TOKENS
-    MATCH CHARACTER 
-        FOR A SINGLE CHARACTER TOKEN e.g. ('(', '$',',')
-        APPEND THE TOKEN TO THE VECTOR
+    // COMPILE PROGRAM STRING INTO A TOKEN ARRAY
+    TOKEN LIST = lex()     
 
-        FOR A MULTI CHARACTER TOKEN e.g. numbers
-        CREATE A NUMBER STRING
-        WHILE character IS A NUMBER 
-            APPEND character TO NUMBER STRING 
-        ENDWHILE 
-        PARSE NUMBER STRING TO INTEGER 
-        APPEND TOKEN TO THE VECTOR
-    ENDMATCH
+    // COMBINE TOKENS INTO A SERIES OF INSTRUCTIONS
+    INSTRUCTION LIST = parse()   
 
-    APPEND EOF TOKEN TO VECTOR
-ENDPROCEDURE
+    // CONVERT INSTRUCTIONS INTO MACHINE CODE
+    MACHINE CODE = compile() 
 
-PROCEDURE parse()
-
+    WRITE MACHINE CODE TO FILE
 ENDPROCEDURE
 \end{lstlisting}
 
@@ -365,7 +381,7 @@ lw $r0, 10(%r0)
            ^
 \end{lstlisting}
 
-For this: two things are required, the error message itself, and the position of the error (start and end position). The program string itself instead of being included in the error can be passed as a parameter when displaying the message, and from this, the display method should be able to reference the line and character(s) on which the error occured.
+For this: two things are required, the error message itself, and the position of the error (start and end position). The program string itself instead of being included in the error can be passed as a parameter when displaying the message and the display method should be able to reference the line and character(s) on which the error occured from this.
 
 \begin{lstlisting}
 STRUCT SYNTAX_ERROR
@@ -375,7 +391,7 @@ STRUCT SYNTAX_ERROR
 ENDSTRUCT
 \end{lstlisting}
 
-The algorithm to display syntax errors should convert the s\_pos and e\_pos variables into a line number and column tuple, (initially an index in the 1 dimensional program string). It should then identify the column of the line in which the error occurs and print a carrat under that character. Since s\_pos and e\_pos refer to indexes in the program string, to gather the line number and column in which they occur: after iterating through the string line by line and decrementing the variables by the number of characters on each line, when the variables are less than the length of the subsequent line, the (line, col) position of the error has been found.
+The algorithm to display syntax errors should convert the s\_pos and e\_pos variables into a line number and column tuple, (initially an index in the 1 dimensional program string). It should then identify the column of the line in which the error occurs and print a carrat under that character. Since s\_pos and e\_pos refer to indexes in the program string, the line number and column in which they occur must be determined: after iterating through the string line by line and decrementing the variables by the number of characters on each line, when the variables are less than the length of the subsequent line, the (line, col) position of the error has been found.
 
 \begin{lstlisting}
 PROCEDURE DISPLAY_SYNTAX_ERROR(program: STRING)
@@ -391,10 +407,370 @@ PROCEDURE DISPLAY_SYNTAX_ERROR(program: STRING)
 
     PRINT msg, "line: ", line
     PRINT line 
-    PRINT " " * (s_col-1) + "^"*(e_col-s_col) + " " * LEN(line) - e_col
+    PRINT " " * (s_col - 1) // SPACE BEFORE COL AND ERR
+        + "^" * (e_col - s_col + 1) // LENGTH OF ERR
 ENDPROCEDURE
 \end{lstlisting}
 
 \subsubsection{Algorithms}
-
 \subsubsubsection{Lexical Analysis}
+The lexer needs to step through the program string one character at a time and produce a vector of tokens containing the elements of the program (e.g. numbers, brackets or commas) that the parser can easily iterate through. 
+
+\begin{lstlisting}
+PROCEDURE lex() 
+    ITERATE THROUGH THE PROGRAM CHARACTER BY CHARACTER
+    CREATE A VECTOR OF TOKENS
+    
+    MATCH CHARACTER 
+        FOR A SINGLE CHARACTER TOKEN e.g. ('(', '$',',')
+        APPEND THE TOKEN TO THE VECTOR
+
+        FOR A MULTI CHARACTER TOKEN e.g. numbers
+        CREATE A NUMBER STRING
+        WHILE character IS A NUMBER 
+            APPEND character TO NUMBER STRING 
+        ENDWHILE 
+        PARSE NUMBER STRING TO INTEGER 
+        APPEND TOKEN TO THE VECTOR
+    ENDMATCH
+
+    APPEND EOF TOKEN TO VECTOR
+ENDPROCEDURE
+\end{lstlisting}
+
+I will create a lexer struct to store the internal state of the lexer: e.g. the current character, read position, program string. The lexer should have functions to advance (eat) a character, and peek at the next character.
+
+\begin{lstlisting}
+STRUCT LEXER 
+    STRING program
+    UNSIGNED INTEGER pos 
+    CHAR ch
+ENDSTRUCT
+
+PROCEDURE LEXER.eat() 
+    IF SELF.pos < LEN(SELF.program) THEN 
+        SELF.pos += 1 
+        SELF.ch = SELF.program[SELF.pos]
+    ELSE 
+        SELF.ch = EOF 
+    END
+ENDPROCEDURE
+
+FUNCTION LEXER.peek() RETURNS CHAR
+    IF SELF.pos + 1 < LEN(SELF.program) THEN 
+        RETURN SELF.program[SELF.pos + 1]
+    ELSE 
+        RETURN NONE
+    ENDIF
+ENDFUNCTION
+\end{lstlisting}
+
+The \texttt{lex()} method should use the above functions to iterate through each character in the program string, if it encounters a single character token e.g. '(', '\$', that should be appended to the token vector. Should it encounter a alphabetic character, it should parse an identifier and build up a string of all consecutive alphanumeric characters. This identifier should be matched against the mneumonics and return a token specifying the specific instruction e.g. LW, or ADD. Should it encounter a number, if the first two characters are '0b' or '0x' the following digits should be parsed as binary or hexidecimal respectively - else they should be interpreted as denary. 
+
+\begin{lstlisting}
+PROCEDURE lex() 
+    TOKEN[] tokens
+
+    WHILE SELF.ch != EOF DO 
+        TOKEN tok_type;
+        UNSIGNED INTEGER s_pos = SELF.pos
+        MATCH SELF.ch 
+            CASE '(':
+                tok_type = LPAREN
+            CASE ')':
+                tok_type = RPAREN
+            CASE ',':
+                tok_type = COMMA
+            //[...]
+
+            CASE '.':
+                IF SELF.peek() is ALPHABETIC:
+                    tok_type = lex_identifier()
+                ELSE:
+                    tok_type = DOT
+
+            case SELF.ch is NUMERIC:
+                UNSIGNED INTEGER base = 10
+                IF SELF.ch == '0' AND SELF.peek() == 'b':
+                    // point to the first character of the
+                    // digit string for lexing
+                    SELF.eat()
+                    SELF.eat()
+                    base = 2
+                IF SELF.ch == '0' AND SELF.peek() == 'x':
+                    SELF.eat()
+                    SELF.eat()
+                    base = 16
+                ENDIF
+                
+                digit_str = lex_number()
+                tok_type = NUMBER(INT(digit_str, base)) 
+
+            case SELF.ch is ALPHABETIC:
+                STRING identifier = lex_identifier()
+                IF identifier IN mneumonics:
+                    tok_type = mneumonics[identifier]
+                ELSE 
+                    THROW "SyntaxError: unexpected mneumonic"
+
+        tokens.PUSH(
+            Token(tok_type, s_pos: s_pos, e_pos: SELF.pos)
+        )
+    ENDWHILE
+
+    RETURN tokens
+ENDPROCEDURE
+
+PROCEDURE lex_identifier() RETURNS STRING
+    STRING str = SELF.ch
+    WHILE SELF.peek() is ALPHANUMERIC DO 
+        SELF.eat()
+        str += SELF.ch
+    ENDWHILE 
+
+    // pos will point to the last character of the string 
+    // meaning the next character will be skipped when 
+    // eat() is called 
+    SELF.rewind()
+    RETURN str
+ENDPROCEDURE
+\end{lstlisting}
+
+\subsubsubsection{Parsing}
+Once the program has been converted into a list of tokens, the next step is to parse these tokens into a series of structs representing the assembly language instructions. The program should iterate through the tokens, and once it encounters a mneumonic, parse the operands of the instruction into a struct representing the encoding type. The function should return a list of these instruction structs. There are two valid types of statements the parser could encounter, a label definiton or an instruction, and therefore an interface is required for these two types under a the branch "Statement".
+
+There are two formats I'm considering for instructions, either each instruction struct is identical and contains a vector of variable length of operands. This has the advantage of making parsing easier, however compilation will be more tedious.
+
+Else, each instruction has a mneumoic field, and then one of 2 format types: I or R depending on the instruction being parsed. Since the \texttt{format} field could hold either \texttt{R\_format} or \texttt{I\_format}, and rust doesn't support inheritance - an enum can be used instead. 
+
+\begin{lstlisting}
+TRAIT Statement
+
+STRUCT Label : Statement 
+    String label 
+    UNSIGNED INTEGER s_pos 
+    UNSIGNED INTEGER e_pos 
+ENDSTRUCT
+
+STRUCT Instruction : Statement
+    Token mneumonic;
+    InstructionFormat format
+
+    UNSIGNED INTEGER s_pos, 
+    UNSIGNED INTEGER e_pos,
+ENDSTRUCT
+
+ENUM InstructionFormat
+    R(R_format),
+    I(I_format),
+ENDENUM
+    
+STRUCT R_format 
+    Register rs
+    Register rt
+    Register rd
+ENDSTRUCT
+
+STRUCT I_format 
+    Register rs
+    Register rt
+    Number immediate
+ENDSTRUCT
+\end{lstlisting}
+
+When parsing, the parser should iterate through each token - depending on which mneumonic it encounters, it should pass a different format of operands, e.g. a \texttt{LW} instruction should take the form \texttt{lw $rt, imm($rs)} wheras a \texttt{jmp} instruction \texttt{jmp imm}. The \texttt{eat\_expect()} function helps to simplify the code - as it both advances a token and throws an error if the token it encountered was not the one expected.
+
+\begin{lstlisting}
+STRUCT Parser
+    Token token
+    Token[] tokens
+    UNSIGNED INTEGER pos
+ENDSTRUCT
+
+FUNCTION Parser.eat_expect(Token token) RETURNS Token | Error 
+    self.eat() 
+    IF self.token != token THEN
+        THROW "Unexpected token encountered" 
+    ELSE 
+        RETURN self.token 
+    ENDIF 
+ENDFUNCTION
+
+PROCEDURE parse()
+    WHILE self.token != EOF 
+        instruction = MATCH self.TOKEN
+            CASE LABEL:
+                LABEL
+
+            CASE ADD, SUB, AND [...]:
+                parse_R_format()
+
+            CASE ADDI, ANDI, BEQ, BNE [...]:
+                parse_Ri_format()
+
+            CASE LW, SW: 
+                parse_L_format()
+
+            CASE JR: 
+                [...]
+
+            CASE JAL:
+                [...]
+        ENDMATCH
+
+        self.eat()
+        IF self.token != NEWLINE OR self.token != EOF 
+            THROW "expected newline"
+        ENDIF 
+    ENDWHILE
+ENDPROCEDURE
+
+// mneumonic rd rs rt 
+FUNCTION parse_R_format() RETURNS Instruction 
+    Token mneumonic = self.token
+
+    Token rd = self.eat_expect(Register)
+    self.eat_expect(COMMA)
+
+    Token rs = self.eat_expect(Register)
+    self.eat_expect(COMMA)
+
+    Token rt = self.eat_expect(Register)
+
+    RETURN Instruction(mneumonic, R_format(rs, rt, rd))
+ENDFUNCTION
+
+// addi $r0, $r1, 0xf0ba
+FUNCTION parse_Ri_format() RETURNS Instruction 
+    Token mneumonic = self.token
+
+    Token rt = self.eat_expect(Register)
+    self.eat_expect(COMMA)
+
+    Token rs = self.eat_expect(Register)
+    self.eat_expect(COMMA)
+
+    Token immediate = self.eat_expect(Number)
+
+    RETURN Instruction(mneumonic, I_format(rs, rt, immediate))
+ENDFUNCTION
+
+// lw $rt, 10($rs)
+FUNCTION parse_L_format() RETURNS Instruction
+    Token mneumonic = self.token
+
+    Token rt = self.eat_expect(Register)
+    self.eat_expect(COMMA)
+
+    Token immediate = self.eat_expect(Number)
+
+    self.eat_expect(LPAREN)
+    Token rs = self.eat_expect(Register)
+    self.eat_expect(RPAREN)
+
+    RETURN Instruction(mneumonic, I_format(rs, rt, immediate))    
+ENDFUNCTION
+\end{lstlisting}
+
+\subsubsubsection{Compilation}
+The compiler has broadly the same structure as the assembler: the file is fed through a lexer and then a parser to build up an abstract syntax tree, and from there, a code generator. However whilst the lexer is broadly similar to the assemblers, the parser is much more complicated. It needs to consider the order of operations of statements and expressions, parse prefix, infix and postfix expressions - multi character tokens, and consider the context in which any of these are used. The parsing algorithm I will use for this is a Pratt parser: it provides each operation with a binding precedence (e.g. multiplication binds stronger than addition) and parses expressions recursively - stopping a particular branch when it encounters an operator with a lower binding preference.
+
+In a pratt parser programs are broken up into statements and expressions: statements are terminated by a semicolon and tend to be inflexible in their usage (such as a function definition or variable declaration), unlike expressions which can be passed around and evaluated. The grammar for my language will look as follows:
+
+\begin{lstlisting}
+statement:      function 
+                | declaration
+
+function:       FUNC identifier LPAREN (binding COMMA)* binding? RPAREN ( -> type)? block
+
+declaration:    VAR binding EQ expression SEMICOLON
+
+binding:        identifier : type
+
+block:          LBRACE ( declaration | expression SEMICOLON )* expression? RBRACE
+
+expression:     call 
+                | binary 
+                | prefix 
+                | postfix 
+                | literal 
+                | variable 
+                | assign 
+                | break 
+                | return
+                | while 
+                | for 
+                | if
+
+literal:        int | char | bool
+assign:         expression EQ expression 
+infix:          expression BINOP expression 
+postfix:        expression POSTOP
+prefix:         PREOP expression
+if:             IF LPAREN expression RPAREN block (ELSE block)? 
+for:            FOR LPAREN ( declaration? expression? SEMICOLON expression? SEMICOLON) block
+\end{lstlisting}
+
+\begin{lstlisting}
+ENUM STATEMENT
+    DECLARATION {
+        binding: Binding, 
+        expression: EXPRESSION
+    }
+
+    FUNCTION {
+        identifier: Identifier,
+        bindings: Binding,
+        return: Type,
+        body: Block
+    }
+ENDENUM
+
+ENUM EXPRESSION 
+    INFIX {
+        op: BINOP 
+        lhs: EXPRESSION,
+        rhs: EXPRESSION,
+    }
+
+    ASSIGN {
+        lhs: EXPRESSION,
+        rhs: EXPRESSION
+    }
+
+    IF {
+        condition: EXPRESSION,
+        consequence: Block,
+        alternative: Block?,
+    }
+
+    EMPTY // '()'
+ENDENUM
+
+STRUCT Type 
+    type: TYPE
+    size: int
+ENDSTRUCT  
+
+ENUM TYPE 
+    INT,
+    CHAR,
+    VOID,
+    BOOL,
+    STRUCT(Vec<TYPE>),
+    ARRAY(TYPE, int),
+    PTR(TYPE),
+ENDENUM
+
+STRUCT Binding 
+    type: Type 
+    identifier: Identifier
+ENDSTRUCT
+
+STRUCT Block 
+    statements: Vec<STATEMENT>
+    expression: EXPRESSION 
+ENDSTRUCT
+\end{lstlisting}
+
+Reverse polish notation for compiling infix expressions, arrays and pointers

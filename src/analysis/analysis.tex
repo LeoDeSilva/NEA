@@ -1,6 +1,6 @@
 \section{Analysis}
 \subsection{Problem Defenition}
-The goal of this project is to design and simulate a custom CPU. This necesitates the development of a suite of tools required to emulate and write programs for this processor, including an Emulator (or Virtual Machine) (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) considering the internal registers, system clock, main memory, and fetch execute cycle.
+The goal of this project is to design and simulate a custom CPU, requiring a suite of tools to emulate and write programs for this processor, including an Emulator (or Virtual Machine) (\ref{sec:Emulator}), Assembler (\ref{sec:Assembler}), and Compiler (\ref{sec:Compiler}). The project will detail the abstract design of the computer’s Instruction Set Architecture (ISA) (\ref{sec:ISA}) considering the internal registers, system clock, main memory, and fetch execute cycle.
 
 The project will compose three primary parts, an emulator capable of loading machine code 'catridges' and simulating the hardware behaviour required to execute them with correct clock timing and behaviour. An assembler to translate programs written in an assembly language into binary machine code. And finally a compiler - to translate a higher level programming langauge into machine code. The compiler will require compiler optimisations in the produced object code; data structures such as arrays, objects and strings; conditional and iterative expressions; and finally functions and procedures. All together, the processor and suite surrounding it should be capable of writing and compiling complex programs such as pong or tetris, and emulating them with hardware correct timings - dealing with I/O peripherals such as a keyboard or speaker.
 
@@ -510,3 +510,6 @@ Finally, I will design a high level language with syntax similar to C and featur
 
 \newpage
 \input{src/analysis/alevel_standard.tex}
+
+\subsection{Technical Decisions}
+I decided to use two languages for this project, C for the virtual machine - due to the minimal overhead required for interacting with machine code. It has minimal abstractions making bitwise logic easier to follow and more concise to write. However, I will use Rust for the compiler and assembler due to the higher level features it implements, including strings and compound data types that will come in handy when working with a text file. 
