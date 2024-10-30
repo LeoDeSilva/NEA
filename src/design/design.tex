@@ -205,7 +205,7 @@ The processor has $2^{16}$ different 16-bit memory locations, both this and the 
 \subsubsection{Algorithms}
 
 \subsubsubsection{Fetch-Execute Cycle}
-The virtual machines primary directive is to simulate the fetch-decode execute cycle of the processor. This involves fetching an instruction from memory, incrementing the program counter, and then depending on the opcode of the fetched instruction, executing logic to handle that instruction. The \texttt{elapsed\_cycles} field on the struct can be used to keep a record of the time the program should wait after each instruction to maintain consistancy with the clock speed of the processor. The basic structure for the fetch-execute cycle procedure should look as follows:
+The virtual machines primary directive is to simulate the fetch-decode execute cycle of the processor. This involves fetching an instruction from memory, incrementing the program counter, and then depending on the opcode of the fetched instruction, executing logic to handle that instruction. The \texttt{elapsed\_cycles} field on the struct can be used to keep a record of the time the program should wait after each instruction to maintain consistancy with the clock speed of the processor. This will be set depending on the instruction according to the processor architecture, e.g. a jump instruction may only take 2 cycles to execute, wheras a branch on equals would take 4. The basic structure for the fetch-execute cycle procedure should look as follows:
 
 \begin{lstlisting}
 PROCEDURE FETCH_EXECUTE()
@@ -261,6 +261,7 @@ PROCEDURE FETCH_EXECUTE
         ELSE 
             elapsed_cycles -= 1
         ENDIF
+z`
 
         WAIT 1/CLOCK_SPEED
     ENDWHILE
@@ -713,7 +714,7 @@ for:            FOR LPAREN ( declaration? expression? SEMICOLON expression? SEMI
 
 \begin{lstlisting}
 ENUM STATEMENT
-    DECLARATION {
+    CONST {
         binding: Binding, 
         expression: EXPRESSION
     }
@@ -773,4 +774,162 @@ STRUCT Block
 ENDSTRUCT
 \end{lstlisting}
 
-Reverse polish notation for compiling infix expressions, arrays and pointers
+When iterating through a the list of tokens, the first thing to parse would be a statement, be that a function definition or variable declaration.
+
+\begin{lstlisting}
+FUNCTION parse_statement() RETURNS STATEMENT
+    SWITCH self.token 
+        CASE Token::FUNC:
+            parse_func();
+
+        CASE Token::CONST:
+            parse_const();
+
+        DEFAULT:
+            THROW "unexpected token encountered"
+ENDFUNCTION
+
+FUNCTION parse_func() RETURNS STATEMENT 
+    self.eat()
+    Identifier identifier = self.parse_identifier()
+
+    self.eat_assert(LPAREN)
+    Binding[] params = [];
+    WHILE self.token != RPAREN AND self.token != COMMA 
+        self.parse_binding()
+    ENDWHILE
+    self.eat_assert(RPAREN)
+    
+    Type type;
+    IF self.eat(RARROW) THEN
+        type = self.parse_type()
+    ELSE
+        type = VOID
+    ENDIF
+
+    Body body = self.parse_block()
+
+    RETURN Statement::FUNCTION(
+        identifier,
+        parameters,
+        type,
+        body
+    )
+ENDFUNCTION
+
+FUNCTION parse_const() RETURNS STATEMENT
+    self.eat()
+    Binding binding = self.parse_binding()
+    self.eat_assert(EQ)
+
+    // verify that the expression simplifies down into a single literal 
+    // in the optimisations module
+    EXPRESSION expr = self.parse_expr()
+    self.eat_assert(SEMICOLON)
+
+    RETURN Statement::CONST(
+        binding, 
+        expr
+    )
+ENDFUNCTION
+\end{lstlisting}
+
+\begin{wrapfigure}[24]{r}{6.5cm}
+    \shadowbox{
+        \includegraphics[width=6cm]{Pratt Parser-2.png}
+    }
+\end{wrapfigure}
+
+The \texttt{parse\_expression()} function will contain the meat of the compiler, it should first determine whether the token is a keyword (IF, FOR, WHILE): and if so, parse that accordingly. Otherwise, it should invoke the \texttt{parse\_pratt\_expression()} function. 
+
+A pratt parser works by assigning each operation a binding preference, (e.g. multiplication binds with a higher binding power than addition, which itself binds with a higher power than logical operations like '=='). It recursively parses the right hand side of an infix operation (two operands seperated by an operator), whilst the binding power of the current operation is greater that than its parent. 
+
+Prefix and postfix operations can also be supported in a pratt parser by verifying the token when parsing the literal on the left hand side of the equation. For example, when parsing \texttt{-a + b}, usually the parser would look for a literal token (a varaible name or number) and throw an error if it does not exist. However another condition to run \texttt{parse\_pratt\_expression()} once more, after it ecnounters a prefix operation with a higher binding preference and storing that expression as the left hand side allows brackets and prefix operations to be supported.
+
+\begin{lstlisting}
+FUNCTION parse_pratt_expression(INT precedence)
+    EXPRESSION lhs
+    SWITCH self.token 
+        CASE NUMBER:
+            lhs = NUMBER(number)
+        CASE RPAREN:
+            lhs  = parse_pratt_expression(0)
+            eat_assert(RPAREN)
+        CASE OP:
+            EXPRESSION rhs = parse_pratt_expression(OP.prefix_binding_power)
+            lhs = UNARY(OP, rhs)
+    ENDSWITCH
+
+    self.eat()
+    INT cur_precedence = self.token.binding_power()
+    WHILE self.token.is_operation() AND cur_precedence > precedence DO 
+        self.eat()
+        EXPRESSION rhs = parse_pratt_expression(self.token.binding_power + 1)
+        cur_precedence = op.binding_power()
+        lhs = INFIX(lhs, op, rhs)
+    ENDWHILE
+
+    RETURN lhs
+ENDFUNCTION
+\end{lstlisting}
+
+\subsubsubsection{Optimizations \& Sentiment Analysis}
+The third component of the compiler verifies the abstract syntax tree \& performs any optimisations it can. This involves checking variable types \& scopes, folding constants into a single literal, ensuring the presence of a \texttt{main()} function, and validating the left hand side of any assignment operations. 
+
+Constant folding is the first operation the compiler will perform. For each expression in the abstract syntax tree, the program should recursively evaluate the left and the right hand side of the expression. Should an operation be performed on two literal nodes who's value is known at compile time (e.g. ints or chars) - the program should precalculate and store the result of the operation in the abstract syntax tree. 
+
+\begin{lstlisting}
+FUNCTION fold_constant(expr: EXPRESSION) RETURNS EXPRESSION
+    IF expr is LITERAL 
+        RETURN expr
+    ELSE IF expr is INFIX 
+        lhs = fold_constant(expr.lhs)
+        rhs = fold_constant(expr.rhs)
+
+        SWITCH op 
+            CASE '+':
+                return lhs + rhs
+            CASE '*':
+                return lhs * rhs
+            // [...]
+        ENDSWITCH 
+    ENDIF
+ENDFUNCTION
+\end{lstlisting}
+
+\subsubsubsection{Scoped Variables \& The Symbol Table}
+To keep track of variables within the program, I will create a scope table. It should contain a list of \texttt{Scope} structs, addressible by a unique ScopeID for each scope. A scope needs to contain a hashmap of all the variables declared within that scope (stored with their respective types) and a reference to a potential parent scope. The data structures will look as follows:
+
+\begin{lstlisting}
+STRUCT SymbolTable
+    symbols: HashMap<Identifier, SYMBOL> // store constants and function interfaces
+    scopes: HashMap<ScopeID, Scope>
+ENDSTRUCT
+
+STRUCT Scope 
+    variables: HashMap<Identifier, Variable>,
+    parent: Option<Scope>
+ENDSTRUCT
+
+STRUCT Variable 
+    type: TYPE,
+ENDSTRUCT
+\end{lstlisting}
+
+Since code inside a particular scope can access variables declared within a larger, parent scope. Recursion can be used to help resolve a variable given an identifier and a current scope. 
+
+\begin{lstlisting}
+FUNCTION resolve_variable(scope: ScopeID, identifier: Identifier) RETURNS Option<Variable>
+    current_scope = self.scopes.get(scope)
+
+    IF current_scope.parent == NULL and !current_scope.contains(identifier) THEN
+        RETURN None
+    ELSE IF current_scope.contains(identifier)
+        RETURN current_scope.get(identifier)
+    ELSE 
+        RETURN resolve_variable(current_scope.parent, identifier)
+    ENDIF
+ENDFUNCTION
+\end{lstlisting}
+
+\subsubsubsection{Intermediate Representation \& Code Generation}
