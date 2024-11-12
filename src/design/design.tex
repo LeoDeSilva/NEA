@@ -932,4 +932,92 @@ FUNCTION resolve_variable(scope: ScopeID, identifier: Identifier) RETURNS Option
 ENDFUNCTION
 \end{lstlisting}
 
+\subsubsubsection{Type Checking}
+Each expression in my language has a type, be that \texttt{int, void, char, bool} or a pointer to any of the previous. Assignment expressions have a void type. When validating the types of the AST, the program needs to recursively resolve the type of each expression, and ensure any contained expressions (e.g. lhs and rhs in an infix expression) are of compatible types. Further checks need to be performed to ensure that any conditionals resolve down too a boolean and a function is returning the correct type from within its function block. Depth first tree traversal can be used to ensure all nodes are being checked in the correct order.
+
+\begin{lstlisting}
+    
+\end{lstlisting}
+
 \subsubsubsection{Intermediate Representation \& Code Generation}
+I will use a tuple based IR for this compiler as it most closely resembles an assembly language, making the code generation phase substantially simpler. Each tuple represents an instruction performed on a set of registers, labels or immediate values.
+
+\begin{lstlisting}
+ENUM Block
+    ADD(Register, Register, Register) // add $rs + $rt and store in $rd
+    ADDI(Register, Register, i16)     // add $rs and immediate value, store in $rd
+
+    LABEL(String)
+    JAL(Register, Label)           // jump to label and store return address in $rd
+    JR(Regsiter)                   // jump to the address stored in a particular register 
+    BEQ(Register, Register, Label) // jump to register if $rs == $rt
+
+    MOV(Register, Register)     // set the contents of $rd to $rs
+    LI(Register, i16)           // set the contents of $rd to an immediate value 
+    LW(Register, Register, i16) // load the contents of memory in the address of immediate + $rs into $rd
+ENDENUM
+\end{lstlisting}
+
+The program should iterate through the abstract syntax tree and build up a list of tuples representing each node in the program. For example should an if node be encountered, the produced IR may look as follows:
+
+\begin{lstlisting}
+if a < b {
+    [...consequence]
+} else {
+    [...alternative]
+}
+
+SLT $t0, a, b
+BEQ $t0, $zero, [.else]
+
+[...consequence] 
+jmp [.endif]
+
+[.else]
+[...alternative] 
+
+[.endif]
+\end{lstlisting}
+
+A simple template can be used to generate the IR when compiling conditional statements, however when handling complex expressions you need to take care to store the result of any intermediate calculations. There are two methods for this: the first is a register based approach where the program keeps track of any free registers and assigns each to an intermediate step of the calculation. The second is a stack based approach where after each step the result of the calculation is pushed onto the stack and retrieved when it is required. I will use the registers \texttt{\$r0} and \texttt{\$r1} as a temporary registers to hold the results of calculations popped from teh stack before they have been operated upon.
+
+\begin{lstlisting}
+// the result of the expression should be stored in $r0
+FUNCTION translate_expression(EXPRESSION expr) 
+    SWITCH expr 
+        CASE LITERAL:
+            "LI $r0, [LITERAL]"
+
+        CASE INFIX:
+            translate_infix(expr)
+    ENDSWITCH
+ENDFUNCTION
+
+FUNCTION translate_infix(EXPRESSION expr) 
+    translate_expression(lhs)
+    PUSH $r0
+
+    translate_expression(rhs)
+    POP $r1 // retrieve the value of the lhs from the stack
+
+    SWITCH op 
+        CASE ADD:
+            ADD $r0, $r1, $r0
+
+        CASE SUB:
+            SUB $r0, $r1, $r0 
+
+        [...]
+    ENDSWITCH
+ENDFUNCTION
+\end{lstlisting}
+
+For the compiler to reference locally scoped variables, they must be assigned a slot in the current stack frame. The function prologue needs to prepare the stack frame for any locally scoped variables and parameters and push the return address of the function onto the stack (so further function calls will not overwrite the original return stored in the register). This can be done by setting the base pointer (references the top of the stack) to the stack pointer and storing the old base pointer to retrieve when the function completes. This way when new elements are added to the stack, the compiler can assure they will not overwrite the previous functions scope. Once the function has terminated the function epiologue is responsible for returning the stack to the exact state it was before the function is called.
+
+\begin{center}
+    \shadowbox{
+        \includegraphics[width=13cm]{Screenshot 2024-11-04 at 12.31.18.png}
+    }
+\end{center}
+
+Once the stack has been prepared local variables can be stored internally as an offset from the base pointer of the current stack frame. e.g. in the example above, since the stack grows downwards, the address of variable \texttt{b} in the \texttt{main()} function could be calculated by adding 2 to the address in the base pointer.
