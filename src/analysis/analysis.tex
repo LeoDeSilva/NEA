@@ -508,8 +508,5 @@ Finally, I will design a high level language with syntax similar to C and featur
 
 \input{src/analysis/prototyping.tex}
 
-\newpage
-\input{src/analysis/alevel_standard.tex}
-
 \subsection{Technical Decisions}
 I decided to use two languages for this project, C for the virtual machine - due to the minimal overhead required for interacting with machine code. It has minimal abstractions making bitwise logic easier to follow and more concise to write. However, I will use Rust for the compiler and assembler due to the higher level features it implements, including strings and compound data types that will come in handy when working with a text file. 

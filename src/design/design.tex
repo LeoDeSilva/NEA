@@ -789,17 +789,21 @@ FUNCTION parse_statement() RETURNS STATEMENT
             THROW "unexpected token encountered"
 ENDFUNCTION
 
+// <IDENTIFIER>(<BINDING>,?)* (-> TYPE)? { BLOCK }
 FUNCTION parse_func() RETURNS STATEMENT 
     self.eat()
     Identifier identifier = self.parse_identifier()
 
     self.eat_assert(LPAREN)
+
+    // continue parsing parameter bindings until a ')' is encountered
     Binding[] params = [];
     WHILE self.token != RPAREN AND self.token != COMMA 
         self.parse_binding()
     ENDWHILE
     self.eat_assert(RPAREN)
     
+    // optionally parse a return type if '->' is encountered
     Type type;
     IF self.eat(RARROW) THEN
         type = self.parse_type()
@@ -817,13 +821,12 @@ FUNCTION parse_func() RETURNS STATEMENT
     )
 ENDFUNCTION
 
+// CONST <BINDING> = <EXPRESSION>
 FUNCTION parse_const() RETURNS STATEMENT
     self.eat()
     Binding binding = self.parse_binding()
     self.eat_assert(EQ)
 
-    // verify that the expression simplifies down into a single literal 
-    // in the optimisations module
     EXPRESSION expr = self.parse_expr()
     self.eat_assert(SEMICOLON)
 
@@ -849,6 +852,8 @@ Prefix and postfix operations can also be supported in a pratt parser by verifyi
 \begin{lstlisting}
 FUNCTION parse_pratt_expression(INT precedence)
     EXPRESSION lhs
+
+    // parse LHS & any prefixes (parenthesis, unary operations, literals)
     SWITCH self.token 
         CASE NUMBER:
             lhs = NUMBER(number)
@@ -902,7 +907,8 @@ To keep track of variables within the program, I will create a scope table. It s
 
 \begin{lstlisting}
 STRUCT SymbolTable
-    symbols: HashMap<Identifier, SYMBOL> // store constants and function interfaces
+    // store constants and function interfaces
+    symbols: HashMap<Identifier, SYMBOL> 
     scopes: HashMap<ScopeID, Scope>
 ENDSTRUCT
 
@@ -916,17 +922,19 @@ STRUCT Variable
 ENDSTRUCT
 \end{lstlisting}
 
-Since code inside a particular scope can access variables declared within a larger, parent scope. Recursion can be used to help resolve a variable given an identifier and a current scope. 
+Since code inside a particular scope can access variables declared within a larger, parent scope. Recursion can be used to help resolve a variable given an identifier and a current scope. The \texttt{resolve\_variable()} function should, given a scope and variable identifier, return the Variable struct (containing the datatype and space in memory) corresponding to the variable with that particular identifier from that scope or any parent scopes. 
 
 \begin{lstlisting}
 FUNCTION resolve_variable(scope: ScopeID, identifier: Identifier) RETURNS Option<Variable>
     current_scope = self.scopes.get(scope)
 
-    IF current_scope.parent == NULL and !current_scope.contains(identifier) THEN
+    IF current_scope.parent == NULL 
+      AND !current_scope.contains(identifier) THEN
         RETURN None
     ELSE IF current_scope.contains(identifier)
         RETURN current_scope.get(identifier)
     ELSE 
+        // recursively call with parent scope
         RETURN resolve_variable(current_scope.parent, identifier)
     ENDIF
 ENDFUNCTION
@@ -935,38 +943,88 @@ ENDFUNCTION
 \subsubsubsection{Type Checking}
 Each expression in my language has a type, be that \texttt{int, void, char, bool} or a pointer to any of the previous. Assignment expressions have a void type. When validating the types of the AST, the program needs to recursively resolve the type of each expression, and ensure any contained expressions (e.g. lhs and rhs in an infix expression) are of compatible types. Further checks need to be performed to ensure that any conditionals resolve down too a boolean and a function is returning the correct type from within its function block. Depth first tree traversal can be used to ensure all nodes are being checked in the correct order.
 
+When type checking a BLOCK statement, all statements internally need to be verified, however the overall 'type' of the block statement is determined by any contained 'return' expressions. Should no return statements exist, the type defaults to VOID.
+
 \begin{lstlisting}
-    
+FUNCTION typeck(expr: EXPRESSION) RETURNS TYPE
+    SWITCH expr 
+        // base case for recursive calls
+        CASE LITERAL: 
+            RETURN expr.type
+        CASE INFIX:
+            lhs_ty = typeck(expr.lhs)
+            rhs_ty = typeck(expr.rhs)
+            IF lhs_ty != rhs_ty THEN 
+                THROW unexpected types
+            ENDIF 
+    ENDSWITCH
+ENDFUNCTION
+
+FUNCTION typeck_block(block: BLOCK) RETURNS TYPE
+    return_ty = VOID
+    FOR stmt in block 
+        SWITCH stmt 
+            CASE expr: 
+                // verify types are consistent and ignore the result
+                typeck(stmt AS expr)
+            CASE RETURN:
+                ty = typeck(stmt)
+                IF return_ty == VOID THEN
+                    return_ty = ty 
+                ELSE IF return_ty != ty THEN 
+                    THROW inconsistent return types
+                ENDIF
+        ENDSWITCH
+    ENDFOR
+
+    RETURN return_type 
+ENDFUNCTION
 \end{lstlisting}
 
 \subsubsubsection{Intermediate Representation \& Code Generation}
-I will use a tuple based IR for this compiler as it most closely resembles an assembly language, making the code generation phase substantially simpler. Each tuple represents an instruction performed on a set of registers, labels or immediate values.
+I will use a tuple based IR for this compiler as it most closely resembles an assembly language, making the code generation phase simpler. Each tuple represents an instruction performed on a set of registers, labels or immediate values described earlier in my instruction set.
 
 \begin{lstlisting}
 ENUM Block
-    ADD(Register, Register, Register) // add $rs + $rt and store in $rd
-    ADDI(Register, Register, i16)     // add $rs and immediate value, store in $rd
+    // add $rs + $rt and store in $rd
+    ADD(Register, Register, Register) 
+
+    // add $rs and immediate value, store in $rd
+    ADDI(Register, Register, i16)     
 
     LABEL(String)
-    JAL(Register, Label)           // jump to label and store return address in $rd
-    JR(Regsiter)                   // jump to the address stored in a particular register 
-    BEQ(Register, Register, Label) // jump to register if $rs == $rt
 
-    MOV(Register, Register)     // set the contents of $rd to $rs
-    LI(Register, i16)           // set the contents of $rd to an immediate value 
-    LW(Register, Register, i16) // load the contents of memory in the address of immediate + $rs into $rd
+    // jump to label and store return address in $rd
+    JAL(Register, Label)           
+
+    // jump to the address stored in a particular register 
+    JR(Regsiter)                   
+
+    // jump to register if $rs == $rt
+    BEQ(Register, Register, Label) 
+
+    // set the contents of $rd to $rs
+    MOV(Register, Register)     
+
+    // set the contents of $rd to an immediate value 
+    LI(Register, i16)           
+
+    // load the contents of memory in the address of immediate + $rs into $rd
+    LW(Register, Register, i16) 
 ENDENUM
 \end{lstlisting}
 
-The program should iterate through the abstract syntax tree and build up a list of tuples representing each node in the program. For example should an if node be encountered, the produced IR may look as follows:
+The program should iterate through the abstract syntax tree and build up a list of tuples representing each node in the program. Some statements can be represented by a standard template such as an IF node. Whilst the condition, consequence and alternative must all be compiled recursively, their location in the assembly program can be determined by the following template:
 
 \begin{lstlisting}
+// === High Level === 
 if a < b {
     [...consequence]
 } else {
     [...alternative]
 }
 
+// === Assembly ===
 SLT $t0, a, b
 BEQ $t0, $zero, [.else]
 
@@ -979,7 +1037,7 @@ jmp [.endif]
 [.endif]
 \end{lstlisting}
 
-A simple template can be used to generate the IR when compiling conditional statements, however when handling complex expressions you need to take care to store the result of any intermediate calculations. There are two methods for this: the first is a register based approach where the program keeps track of any free registers and assigns each to an intermediate step of the calculation. The second is a stack based approach where after each step the result of the calculation is pushed onto the stack and retrieved when it is required. I will use the registers \texttt{\$r0} and \texttt{\$r1} as a temporary registers to hold the results of calculations popped from teh stack before they have been operated upon.
+When handling complex expressions you need to store the result of any intermediate calculations. There are two methods I could use for this: the first is a register based approach where the program keeps track of any free registers and assigns each to an intermediate step of the calculation. The second is a stack based approach where after each step the result of the calculation is pushed onto the stack and retrieved when it is required. The register based approach is more memory efficient, however limits how complicated expressions can be since there are only a finite number of registers. I will use the registers \texttt{\$r0} and \texttt{\$r1} as a temporary registers to hold the results of calculations popped from the stack before they have been operated upon.
 
 \begin{lstlisting}
 // the result of the expression should be stored in $r0
@@ -1021,3 +1079,46 @@ For the compiler to reference locally scoped variables, they must be assigned a 
 \end{center}
 
 Once the stack has been prepared local variables can be stored internally as an offset from the base pointer of the current stack frame. e.g. in the example above, since the stack grows downwards, the address of variable \texttt{b} in the \texttt{main()} function could be calculated by adding 2 to the address in the base pointer.
+
+For the compiler to reference locally scoped variables by offset, a data structure containing the context of a function scope is required. It needs a reference to the return label, a reference to the current stack position, and a scope ID so variable types can be looked up in the symbol table.
+
+When a locally scoped variable is declared, a new record in the symbol table needs to be added - storing the stack slot for that particular variable. 
+
+\begin{lstlisting}
+STRUCT Fctx
+    ret_label: STRING 
+    stack_pointer: i16 
+    scopeID: ScopeID
+ENDSTRUCT
+
+PROCEDURE translate_declaration(binding: BINDING, expr: EXPRESSION) 
+    // translate the expression and push the result to the top of the stack
+    translate_expression(expr)
+    PUSH $r0
+
+    // update stack pointer variable after pushing a value 
+    fctx.stack_pointer -= 1 
+
+    // store the stack slot in symbol table
+    symtbl[fctx.scope][binding.identifier].stack_slot = fctx.stack_pointer
+ENDPROCEDURE
+\end{lstlisting}
+
+Since the stack slot is an offset from the base pointer, the absolute memory location of any variable can be calculated by adding together the stack slot offset stored in the symbol table and the value of the \texttt{\$bp} register. This can be used to implement the pointer prefix operation:
+
+\begin{lstlisting}
+PROCEDURE translate_prefix(op: UNOP, rhs: EXPRESSION) 
+    SWITCH op 
+        CASE DEREF 
+            // evaluate the rhs of the expression and store in $r0
+            translate_expression(rhs)
+
+            // load the value in the memory address given by $r0 into $r0
+            LW $r0, $r0, 0
+
+        CASE PTR // rhs is of type "VARIABLE"
+            stack_slot = symtbl[fctx.scope][rhs.identifier].stack_slot
+            // add the offset to the base pointer and store the calculated memory address in $r0
+            ADDI $r0, $bp, stack_slot
+ENDPROCEDURE
+\end{lstlisting}
