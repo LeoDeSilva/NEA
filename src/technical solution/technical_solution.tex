@@ -7,10 +7,10 @@
 The main method and entry point for the virtual machine is responsible for initialising SDL2 (the graphics library) and the LION processor struct, as well as timing the CPU's execution. The first part of the code validates SDL2 is installed on the users computer, and that a binary file has been provided to the virtual machine, throwing respective errors should either condition not be met. Following this, the main loop runs constantly until the halt flag is set on the CPU. The loop provides four functions:
 
 \begin{enumerate}
-    \item \textbf{Times refresh rate}: The elapsed time for each cycle is calculated by subtracting the time at the end and start of each loop. The expected time to wait to achieve a 60Hz refresh rate is then calculated with \texttt{1000/FPS} and the program waits the difference between the two, ensuring CPU execution slows to the correct speed.
-    \item \textbf{Batches CPU cycles}: Since the rendering code cannot keep up with the 40MHz clock speed requirement, and runs itself at 60Hz, multiple CPU cycles have to be executed per rendering cycle. Calculated by dividing the clock speed by refresh rate. \texttt{CLOCK\_SPEED/FPS}
-    \item \textbf{Updates the display when VRAM is modified}: the \texttt{is\_buffered} flag on the LION struct is set when a write instruction updates the region of memory representing VRAM. This prevents the graphics code throttling execution since it is only updated when required. 
-    \item \textbf{Decrements the delay timer}: each frame, the delay timer is decremented meaning programs can use the delay timer to maintain track of time.
+  \item \textbf{Times refresh rate}: The elapsed time for each cycle is calculated by subtracting the time at the end and start of each loop. The expected time to wait to achieve a 60Hz refresh rate is then calculated with \texttt{1000/FPS} and the program waits the difference between the two, ensuring CPU execution slows to the correct speed.
+  \item \textbf{Batches CPU cycles}: Since the rendering code cannot keep up with the 40MHz clock speed requirement, and runs itself at 60Hz, multiple CPU cycles have to be executed per rendering cycle. Calculated by dividing the clock speed by refresh rate. \texttt{CLOCK\_SPEED/FPS}
+  \item \textbf{Updates the display when VRAM is modified}: the \texttt{is\_buffered} flag on the LION struct is set when a write instruction updates the region of memory representing VRAM. This prevents the graphics code throttling execution since it is only updated when required. 
+  \item \textbf{Decrements the delay timer}: each frame, the delay timer is decremented meaning programs can use the delay timer to maintain track of time.
 \end{enumerate}
 
 \begin{lstlisting}[language=C]
@@ -19,59 +19,59 @@ The main method and entry point for the virtual machine is responsible for initi
 #include "screen.h"
 
 int main(int argc, char *argv[]) {
-    if (SDL_init() != 0) {
-        printf("error initialising SDL2\n");
-        return -1;
+  if (SDL_init() != 0) {
+    printf("error initialising SDL2\n");
+    return -1;
+  }
+
+  if (argc < 2) {
+    printf("Incorrect arguments: expected filename");
+    return -1;
+  }
+
+  struct LION *lion = LION_init();
+  lion->is_running = true;
+  lion->is_buffered = true; 
+
+  LION_read_file(lion, argv[1]);
+
+  while (lion->is_running) {
+    uint64_t start_time = SDL_GetPerformanceCounter();
+    SDL_Event e;
+    
+    while (SDL_PollEvent(&e)) {
+      switch (e.type) {
+        case SDL_QUIT:
+          lion->is_running = false;
+          break;
+      }
     }
 
-    if (argc < 2) {
-        printf("Incorrect arguments: expected filename");
-        return -1;
+    // batch cycle execution to execute at 40MHz with a refresh rate of 60Hz
+    for (int i = 0; (i < CLOCK_SPEED/FPS) && lion->is_running; i++)
+      LION_emulate_cycle(lion);
+
+    // only update the display if instructions have modified VRAM 
+    if (lion->is_buffered) {
+      SDL_update(lion);
+      lion->is_buffered = false;
     }
 
-    struct LION *lion = LION_init();
-    lion->is_running = true;
-    lion->is_buffered = true; 
+    // calculate the time elapsed executing CPU cycles and wait for the remaining time 
+    // to ensure the refresh rate stays a constant 60Hz
+    uint64_t end_time = SDL_GetPerformanceCounter();
+    uint64_t elapsed_time = (end_time - start_time) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+    SDL_Delay(floor((1000/FPS) - elapsed_time));
 
-    LION_read_file(lion, argv[1]);
-
-    while (lion->is_running) {
-        uint64_t start_time = SDL_GetPerformanceCounter();
-        SDL_Event e;
-        
-        while (SDL_PollEvent(&e)) {
-            switch (e.type) {
-                case SDL_QUIT:
-                    lion->is_running = false;
-                    break;
-            }
-        }
-
-        // batch cycle execution to execute at 40MHz with a refresh rate of 60Hz
-        for (int i = 0; (i < CLOCK_SPEED/FPS) && lion->is_running; i++)
-            LION_emulate_cycle(lion);
-
-        // only update the display if instructions have modified VRAM 
-        if (lion->is_buffered) {
-            SDL_update(lion);
-            lion->is_buffered = false;
-        }
-
-        // calculate the time elapsed executing CPU cycles and wait for the remaining time 
-        // to ensure the refresh rate stays a constant 60Hz
-        uint64_t end_time = SDL_GetPerformanceCounter();
-        uint64_t elapsed_time = (end_time - start_time) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
-        SDL_Delay(floor((1000/FPS) - elapsed_time));
-
-        // decrement the delay timer every frame
-        if (lion->memory[DT] > 0) {
-            lion->memory[DT] -= 1;
-        }
+    // decrement the delay timer every frame
+    if (lion->memory[DT] > 0) {
+      lion->memory[DT] -= 1;
     }
+  }
 
-    SDL_close();
+  SDL_close();
 
-    return 0;
+  return 0;
 }
 \end{lstlisting}
 
@@ -80,49 +80,49 @@ Below is the LION struct definition, and the two methods called during initalisa
 \label{LIONReadFile}
 \begin{lstlisting}[language=C]
 struct LION {
-    uint16_t pc;   // store the address of the next instruction
-    uint32_t cir;  // store the current instruction being executed
-    uint16_t r[REG_NUM];
-    uint16_t memory[RAM_SIZE];
-    bool keypad[16];
+  uint16_t pc;   // store the address of the next instruction
+  uint32_t cir;  // store the current instruction being executed
+  uint16_t r[REG_NUM];
+  uint16_t memory[RAM_SIZE];
+  bool keypad[16];
 
-    bool is_running;
-    bool is_buffered; // determines when to update screen
+  bool is_running;
+  bool is_buffered; // determines when to update screen
 };
 
 struct LION *LION_init(void) {
-    struct LION *lion = malloc(sizeof(struct LION));
+  struct LION *lion = malloc(sizeof(struct LION));
 
-    // initialise all RAM and Registers to 0, preventing indeterminate values
-    for (int i = 0; i < RAM_SIZE; i++)
-        lion->memory[i] = 0;
+  // initialise all RAM and Registers to 0, preventing indeterminate values
+  for (int i = 0; i < RAM_SIZE; i++)
+    lion->memory[i] = 0;
 
-    for (int i = 0; i < REG_NUM; i++)
-        lion->r[i] = 0;
+  for (int i = 0; i < REG_NUM; i++)
+    lion->r[i] = 0;
 
-    lion->pc = 0;
-    return lion;
+  lion->pc = 0;
+  return lion;
 }
 
 void LION_read_file(struct LION *lion, char *filename) {
-    FILE *fileptr;
-    long filesize;
+  FILE *fileptr;
+  long filesize;
 
-    // get the length of file in bytes
-    fileptr = fopen(filename, "rb");
-    fseek(fileptr, 0, SEEK_END);
+  // get the length of file in bytes
+  fileptr = fopen(filename, "rb");
+  fseek(fileptr, 0, SEEK_END);
 
-    filesize = ftell(fileptr);
-    rewind(fileptr);
+  filesize = ftell(fileptr);
+  rewind(fileptr);
 
-    // iterate through the file 2 bytes at a time, storing them together as a word in memory
-    for (int address = 0; address < filesize/2; address++) {
-        uint16_t word = 0;
-        fread(&word, 1, 2, fileptr);
-        lion->memory[address] = word;
-    }
+  // iterate through the file 2 bytes at a time, storing them together as a word in memory
+  for (int address = 0; address < filesize/2; address++) {
+    uint16_t word = 0;
+    fread(&word, 1, 2, fileptr);
+    lion->memory[address] = word;
+  }
 
-    fclose(fileptr);
+  fclose(fileptr);
 }   
 \end{lstlisting}
 
@@ -130,109 +130,109 @@ After the LION struct has been initialised, it is responsible for carrying out t
 
 \begin{lstlisting}[language=C]
 void LION_emulate_cycle(struct LION *lion) {
-    // combine the two words into a 32 bit instruction
-    lion->cir = (lion->memory[lion->pc+1] << 16) 
-        | lion->memory[lion->pc];
-    lion->pc += 2;        
+  // combine the two words into a 32 bit instruction
+  lion->cir = (lion->memory[lion->pc+1] << 16) 
+    | lion->memory[lion->pc];
+  lion->pc += 2;    
 
-    LION_emulate_instruction(lion);
+  LION_emulate_instruction(lion);
 }
 
 void LION_emulate_instruction(struct LION *lion) {
-    uint32_t opcode = lion->cir >> 28;
+  uint32_t opcode = lion->cir >> 28;
 
-    // decode instruction into components 
-    uint32_t rs = extract_bits(lion->cir, 5, 5);
-    uint32_t rt = extract_bits(lion->cir, 10, 5);
-    uint32_t rd = extract_bits(lion->cir, 15, 5);
-    int16_t immediate = extract_bits(lion->cir, 15, 16);
-    uint32_t func = extract_bits(lion->cir, 20, 4);
+  // decode instruction into components 
+  uint32_t rs = extract_bits(lion->cir, 5, 5);
+  uint32_t rt = extract_bits(lion->cir, 10, 5);
+  uint32_t rd = extract_bits(lion->cir, 15, 5);
+  int16_t immediate = extract_bits(lion->cir, 15, 16);
+  uint32_t func = extract_bits(lion->cir, 20, 4);
 
-    switch (opcode) {
-        case HLT:
-            LION_display_registers(lion);
-            lion->is_running = false;
-            break;
+  switch (opcode) {
+    case HLT:
+      LION_display_registers(lion);
+      lion->is_running = false;
+      break;
 
-        case R: // (func) $rd, $rs, $rt
-            switch (func) {
-                case FUNC_AND:
-                    lion->r[rd] = lion->r[rs] & lion->r[rt];
-                    break;
+    case R: // (func) $rd, $rs, $rt
+      switch (func) {
+        case FUNC_AND:
+          lion->r[rd] = lion->r[rs] & lion->r[rt];
+          break;
 
-                case FUNC_OR:
-                    lion->r[rd] = lion->r[rs] | lion->r[rt];
-                    break;
+        case FUNC_OR:
+          lion->r[rd] = lion->r[rs] | lion->r[rt];
+          break;
 
-                case FUNC_ADD:
-                    lion->r[rd] = lion->r[rs] + lion->r[rt];
-                    break;
+        case FUNC_ADD:
+          lion->r[rd] = lion->r[rs] + lion->r[rt];
+          break;
 
-                case FUNC_SUB:
-                    lion->r[rd] = lion->r[rs] - lion->r[rt];
-                    break;
+        case FUNC_SUB:
+          lion->r[rd] = lion->r[rs] - lion->r[rt];
+          break;
 
-                case FUNC_SLT:
-                    lion->r[rd] = (int16_t)lion->r[rs] <  (int16_t)lion->r[rt];
-                    break;
+        case FUNC_SLT:
+          lion->r[rd] = (int16_t)lion->r[rs] <  (int16_t)lion->r[rt];
+          break;
 
-                case FUNC_NOR:
-                    lion->r[rd] = ~(lion->r[rs] | lion->r[rt]);
-                    break;
-            }
-            break;
+        case FUNC_NOR:
+          lion->r[rd] = ~(lion->r[rs] | lion->r[rt]);
+          break;
+      }
+      break;
 
-        case ANDI: // andi $rt, $rs, i16
-            lion->r[rt] = lion->r[rs] & immediate;
-            break;
+    case ANDI: // andi $rt, $rs, i16
+      lion->r[rt] = lion->r[rs] & immediate;
+      break;
 
-        case ORI : // ori $rt, $rs, i16
-            lion->r[rt] = lion->r[rs] | immediate;
-            break;
+    case ORI : // ori $rt, $rs, i16
+      lion->r[rt] = lion->r[rs] | immediate;
+      break;
 
-        case ADDI: // addi $rt, $rs, i16
-            lion->r[rt] = lion->r[rs] + immediate;
-            break;
+    case ADDI: // addi $rt, $rs, i16
+      lion->r[rt] = lion->r[rs] + immediate;
+      break;
 
-        case SLTI: // addi $rt, $rs, i16
-            lion->r[rt] = (int16_t)lion->r[rs] < (int16_t)immediate;
-            break;
+    case SLTI: // addi $rt, $rs, i16
+      lion->r[rt] = (int16_t)lion->r[rs] < (int16_t)immediate;
+      break;
 
-        case LW: // lw $rt, i16($rs)
-            lion->r[rt] = lion->memory[lion->r[rs] + immediate];
-            break;
+    case LW: // lw $rt, i16($rs)
+      lion->r[rt] = lion->memory[lion->r[rs] + immediate];
+      break;
 
-        case SW: // sw $rt, i16($rs)
-            lion->memory[lion->r[rs] + immediate] = lion->r[rt];
+    case SW: // sw $rt, i16($rs)
+      lion->memory[lion->r[rs] + immediate] = lion->r[rt];
 
-            // set is_buffered if accessing locations in VRAM
-            if (lion->r[rs] + immediate >= 0x8000 && lion->r[rs] + immediate <= 0x8800)
-                lion->is_buffered = true;
-            break;
+      // set is_buffered if accessing locations in VRAM
+      if (lion->r[rs] + immediate >= 0x8000 && lion->r[rs] + immediate <= 0x8800)
+        lion->is_buffered = true;
+      break;
 
-        case BEQ: // beq $rt, $rs, i16
-            if (lion->r[rs] == lion->r[rt])
-                lion->pc += immediate << 1;
-            break;
+    case BEQ: // beq $rt, $rs, i16
+      if (lion->r[rs] == lion->r[rt])
+        lion->pc += immediate << 1;
+      break;
 
-        case BNE: // bne $rt, $rs, i16
-            if (lion->r[rs] != lion->r[rt])
-                lion->pc += immediate << 1;
-            break;
+    case BNE: // bne $rt, $rs, i16
+      if (lion->r[rs] != lion->r[rt])
+        lion->pc += immediate << 1;
+      break;
 
-        case JMP: // jmp i16
-            lion->pc = immediate;
-            break;
+    case JMP: // jmp i16
+      lion->pc = immediate;
+      break;
 
-        case JAL: // jmp $rt, i16
-            lion->r[rt] = lion->pc;
-            lion->pc = immediate;
-            break;
+    case JAL: // jmp $rt, i16
+      lion->r[rt] = lion->pc;
+      lion->pc = immediate;
+      break;
 
-        case JR: // jmp $rs
-            lion->pc = lion->r[rs];
-            break;
-    }
+    case JR: // jmp $rs
+      lion->pc = lion->r[rs];
+      break;
+  }
 }
 \end{lstlisting}
 
@@ -242,26 +242,26 @@ The first step of the assembler (and compiler) is to tokenize the program string
 \begin{lstlisting}[language=C]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Token {
-    Number(u16),
-    Label(String),
-    Register(u16),
+  Number(u16),
+  Label(String),
+  Register(u16),
 
-    EOF,
-    NEWLINE,
-    COMMA,
+  EOF,
+  NEWLINE,
+  COMMA,
 
-    LPAREN,
-    RPAREN,
-    LSQUARE,
-    RSQUARE,
+  LPAREN,
+  RPAREN,
+  LSQUARE,
+  RSQUARE,
 
-    BEQ,
-    AND,
-    XOR,
-    \\[...]
-    JAL,
-    PUSH,
-    POP,
+  BEQ,
+  AND,
+  XOR,
+  \\[...]
+  JAL,
+  PUSH,
+  POP,
 }
 \end{lstlisting}
 
@@ -270,57 +270,57 @@ In order to meet one of my objectives, my assembler and compiler both require pr
 \begin{lstlisting}[language=C]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Loc {
-    pub pos: usize,
-    pub len: usize,
+  pub pos: usize,
+  pub len: usize,
 }
 
 impl Loc {
-    pub fn new(s_pos: usize, e_pos: usize) -> Self {
-        Loc {
-            pos: s_pos,
-            len: e_pos - s_pos + 1,
-        }
+  pub fn new(s_pos: usize, e_pos: usize) -> Self {
+    Loc {
+      pos: s_pos,
+      len: e_pos - s_pos + 1,
+    }
+  }
+
+  pub fn get_pos(&self, program: &str) -> Option<(usize, usize)> {
+    let mut pos = self.pos;
+    for (line_number, line) in program.lines().enumerate() {
+      if pos <= line.len() + 1 {
+        return Some((line_number, pos));
+      }
+
+      // + 1 accounts for newline characters not included in len()
+      pos -= line.len() + 1;
     }
 
-    pub fn get_pos(&self, program: &str) -> Option<(usize, usize)> {
-        let mut pos = self.pos;
-        for (line_number, line) in program.lines().enumerate() {
-            if pos <= line.len() + 1 {
-                return Some((line_number, pos));
-            }
-
-            // + 1 accounts for newline characters not included in len()
-            pos -= line.len() + 1;
-        }
-
-        None
-    }
+    None
+  }
 }
 
 impl Add for Loc {
-    type Output = Loc;
+  type Output = Loc;
 
-    fn add(self, rhs: Loc) -> Loc {
-        Loc {
-            pos: self.pos,
-            len: rhs.pos + rhs.len - self.pos,
-        }
+  fn add(self, rhs: Loc) -> Loc {
+    Loc {
+      pos: self.pos,
+      len: rhs.pos + rhs.len - self.pos,
     }
+  }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Span<T> {
-    pub v: T,
-    pub loc: Loc
+  pub v: T,
+  pub loc: Loc
 }
 
 impl<T> Span<T> {
-    pub fn new(t: T, s: Loc) -> Span<T> {
-        Span {
-            v: t,
-            loc: s,
-        }
+  pub fn new(t: T, s: Loc) -> Span<T> {
+    Span {
+      v: t,
+      loc: s,
     }
+  }
 }
 
 // helper functions to simplify memory management when 
@@ -328,22 +328,22 @@ impl<T> Span<T> {
 impl<T: Copy> Copy for Span<T> {}
 
 impl<T> Deref for Span<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        &self.v
-    }
+  type Target = T;
+  fn deref(&self) -> &T {
+    &self.v
+  }
 }
 
 impl<T> DerefMut for Span<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.v
-    }
+  fn deref_mut(&mut self) -> &mut T {
+    &mut self.v
+  }
 }
 
 impl<T: fmt::Debug> fmt::Debug for  Span<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.v)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{:?}", self.v)
+  }
 }
 \end{lstlisting}
 
@@ -355,188 +355,188 @@ Should a numerical character be encountered (\texttt{read\_number()}), the lexer
 
 \begin{lstlisting}[language=C]
 pub struct Lexer<'a> {
-    source: Chars<'a>,
-    pos: usize,
-    ch: char,
+  source: Chars<'a>,
+  pos: usize,
+  ch: char,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(mut source: Chars<'a>) -> Self {
-        Self {
-            ch: source.next().unwrap(),
-            pos: 0,
-            source,
-        }
+  pub fn new(mut source: Chars<'a>) -> Self {
+    Self {
+      ch: source.next().unwrap(),
+      pos: 0,
+      source,
+    }
+  }
+
+  // advance the pointer through the source code, 
+  // self.ch is set to a null byte at the end of the file
+  pub fn eat(&mut self) -> char {
+    self.pos += 1;
+    self.ch = self.source.next().unwrap_or('\0');
+    self.ch
+  }
+
+  // advance only if the next character is expected
+  // used to lex multi-character tokens e.g. !, !=
+  pub fn eat_if(&mut self, ch: char) -> bool {
+    self.peek() == ch && { self.eat(); true }
+  }
+
+  // return a copy of the next character in the source code
+  pub fn peek(&self) -> char {
+    self.source.clone().next().unwrap_or('\0')
+  }
+
+  pub fn tokenize(source: Chars<'a>) -> Vec<Span<Token>> {
+    let mut lexer = Lexer::new(source);
+    let mut tokens: Vec<Span<Token>> = Vec::new();
+
+    while lexer.ch != '\0' {
+      let s_pos = lexer.pos;
+      if let Some(token) = lexer.tokenize_char() {
+        tokens.push(Span::new(token, Loc::new(s_pos, lexer.pos)));
+      }
+      lexer.eat();
     }
 
-    // advance the pointer through the source code, 
-    // self.ch is set to a null byte at the end of the file
-    pub fn eat(&mut self) -> char {
-        self.pos += 1;
-        self.ch = self.source.next().unwrap_or('\0');
-        self.ch
+    // terminate lexer output with EOF token
+    tokens.push(Span::new(
+      Token::EOF,
+      Loc::new(lexer.pos, lexer.pos)
+    ));
+
+    tokens
+  }
+
+  pub fn tokenize_char(&mut self) -> Option<Token> {
+    match self.ch {
+      '(' => Some(Token::LPAREN),
+      ')' => Some(Token::RPAREN),
+      '{' => Some(Token::LBRACE),
+      '}' => Some(Token::RBRACE),
+      ',' => Some(Token::COMMA),
+      '^' => Some(Token::XOR),
+      ':' => Some(Token::COLON),
+      ';' => Some(Token::SEMICOLON),
+
+      '+' => Some(
+        if self.eat_if('+') { Token::INC } 
+        else if self.eat_if('=') { Token::ADDEQ } 
+        else { Token::PLUS }
+      ),
+
+      '=' => Some(if self.eat_if('=') { Token::EE } else { Token::EQ }),
+      '<' => Some(if self.eat_if('=') { Token::LTE } else { Token::LT }),
+
+      ch if ch.is_ascii_digit() => self.tokenize_number(),
+      ch if ch.is_alphabetic() => self.tokenize_identifier(),
+      ch if ch == '\'' => self.tokenize_char_literal(),
+
+      ch if ch.is_whitespace() => None,
+
+      _ => fatal_at!(
+        format!("Syntax Error: unexpected character in lexer {:?}", self.ch),
+        Loc::new(self.pos, self.pos)
+      ),
+    }
+  }
+
+  fn tokenize_char_literal(&mut self) -> Option<Token> {
+    let ch = self.eat();
+    if !self.ch.is_ascii() || self.peek() != '\'' {
+      fatal_at!("Syntax Error: invalid character literal", Loc::new(self.pos - 1, self.pos - 1))
     }
 
-    // advance only if the next character is expected
-    // used to lex multi-character tokens e.g. !, !=
-    pub fn eat_if(&mut self, ch: char) -> bool {
-        self.peek() == ch && { self.eat(); true }
+    self.eat();
+    Some(Token::Char(ch))
+  }
+
+  fn tokenize_identifier(&mut self) -> Option<Token> {
+    let identifier = self.read_identifier();
+    if let Some(tok) = Token::from_identifier(&identifier) {
+      Some(tok)
+    } else {
+      Some(Token::Identifier(identifier))
     }
+  }
 
-    // return a copy of the next character in the source code
-    pub fn peek(&self) -> char {
-        self.source.clone().next().unwrap_or('\0')
-    }
+  fn tokenize_number(&mut self) -> Option<Token> {
+    // should the prefix 0x or 0b be encountered, parse the subsequent 
+    // digit string into an integer with base 16, 2 or 10 respectively
 
-    pub fn tokenize(source: Chars<'a>) -> Vec<Span<Token>> {
-        let mut lexer = Lexer::new(source);
-        let mut tokens: Vec<Span<Token>> = Vec::new();
-
-        while lexer.ch != '\0' {
-            let s_pos = lexer.pos;
-            if let Some(token) = lexer.tokenize_char() {
-                tokens.push(Span::new(token, Loc::new(s_pos, lexer.pos)));
-            }
-            lexer.eat();
-        }
-
-        // terminate lexer output with EOF token
-        tokens.push(Span::new(
-            Token::EOF,
-            Loc::new(lexer.pos, lexer.pos)
-        ));
-
-        tokens
-    }
-
-    pub fn tokenize_char(&mut self) -> Option<Token> {
-        match self.ch {
-            '(' => Some(Token::LPAREN),
-            ')' => Some(Token::RPAREN),
-            '{' => Some(Token::LBRACE),
-            '}' => Some(Token::RBRACE),
-            ',' => Some(Token::COMMA),
-            '^' => Some(Token::XOR),
-            ':' => Some(Token::COLON),
-            ';' => Some(Token::SEMICOLON),
-
-            '+' => Some(
-                if self.eat_if('+') { Token::INC } 
-                else if self.eat_if('=') { Token::ADDEQ } 
-                else { Token::PLUS }
-            ),
-
-            '=' => Some(if self.eat_if('=') { Token::EE } else { Token::EQ }),
-            '<' => Some(if self.eat_if('=') { Token::LTE } else { Token::LT }),
-
-            ch if ch.is_ascii_digit() => self.tokenize_number(),
-            ch if ch.is_alphabetic() => self.tokenize_identifier(),
-            ch if ch == '\'' => self.tokenize_char_literal(),
-
-            ch if ch.is_whitespace() => None,
-
-            _ => fatal_at!(
-                format!("Syntax Error: unexpected character in lexer {:?}", self.ch),
-                Loc::new(self.pos, self.pos)
-            ),
-        }
-    }
-
-    fn tokenize_char_literal(&mut self) -> Option<Token> {
-        let ch = self.eat();
-        if !self.ch.is_ascii() || self.peek() != '\'' {
-            fatal_at!("Syntax Error: invalid character literal", Loc::new(self.pos - 1, self.pos - 1))
-        }
-
+    let number = match (self.ch, self.peek()) {
+      ('0', 'x') => {
         self.eat();
-        Some(Token::Char(ch))
+        self.eat();
+        self.read_number(16)
+      },
+      ('0', 'b') => {
+        self.eat();
+        self.eat();
+        self.read_number(2)
+      },
+      _ => self.read_number(10)
+    };
+
+    Some(Token::Number(number))
+  }
+  
+  fn read_number(&mut self, base: u32) -> u16 {
+    let mut sum: u16 = self.ch.to_digit(base).unwrap_or_else(|| 
+      fatal_at!(
+        "Syntax Error: expected digit after base prefix", 
+        Loc::new(self.pos, self.pos)
+      )) as u16;
+
+    // convert the next character into an integer provided it is a digit 
+    // of the correct base and shift the previous total 1 place to the left 
+    // (sum * base) and add the newly parsed digit 
+    while let Some(n) = self.peek().to_digit(base) {
+      sum = (sum * base as u16) + n as u16;
+      self.eat();
     }
 
-    fn tokenize_identifier(&mut self) -> Option<Token> {
-        let identifier = self.read_identifier();
-        if let Some(tok) = Token::from_identifier(&identifier) {
-            Some(tok)
-        } else {
-            Some(Token::Identifier(identifier))
-        }
+    sum
+  }
+
+  fn read_identifier(&mut self) -> String {
+    let mut identifier = String::from(self.ch);
+    while self.peek().is_alphanumeric() || self.peek() == '_' {
+      self.eat();
+      identifier += &self.ch.to_string(); 
     }
 
-    fn tokenize_number(&mut self) -> Option<Token> {
-        // should the prefix 0x or 0b be encountered, parse the subsequent 
-        // digit string into an integer with base 16, 2 or 10 respectively
-
-        let number = match (self.ch, self.peek()) {
-            ('0', 'x') => {
-                self.eat();
-                self.eat();
-                self.read_number(16)
-            },
-            ('0', 'b') => {
-                self.eat();
-                self.eat();
-                self.read_number(2)
-            },
-            _ => self.read_number(10)
-        };
-
-        Some(Token::Number(number))
-    }
-    
-    fn read_number(&mut self, base: u32) -> u16 {
-        let mut sum: u16 = self.ch.to_digit(base).unwrap_or_else(|| 
-            fatal_at!(
-                "Syntax Error: expected digit after base prefix", 
-                Loc::new(self.pos, self.pos)
-            )) as u16;
-
-        // convert the next character into an integer provided it is a digit 
-        // of the correct base and shift the previous total 1 place to the left 
-        // (sum * base) and add the newly parsed digit 
-        while let Some(n) = self.peek().to_digit(base) {
-            sum = (sum * base as u16) + n as u16;
-            self.eat();
-        }
-
-        sum
-    }
-
-    fn read_identifier(&mut self) -> String {
-        let mut identifier = String::from(self.ch);
-        while self.peek().is_alphanumeric() || self.peek() == '_' {
-            self.eat();
-            identifier += &self.ch.to_string(); 
-        }
-
-        identifier
-    }
+    identifier
+  }
 }
 \end{lstlisting}
 
 \subsubsection{Parser}
 Once the source code has been tokenized, the parser needs to convert it into a series of data structures that can be easily compiled down into machine code. Each assembly program is composed of statements, a statement can be either a label declaration or an instruction. Each instruction can take one of two formats, I-format or R-format, each of which I have represented as an type in an Instruction enum.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
-    Label(String),
-    Instruction(Instruction),
+  Label(String),
+  Instruction(Instruction),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instruction {
-    IFormat {
-        mneumonic: Span<Token>,
-        rs: Register,
-        rt: Register,
-        immediate: Span<Immediate>,
-    },
+  IFormat {
+    mneumonic: Span<Token>,
+    rs: Register,
+    rt: Register,
+    immediate: Span<Immediate>,
+  },
 
-    RFormat {
-        mneumonic: Span<Token>,
-        rs: Register,
-        rt: Register,
-        rd: Register,
-    },
+  RFormat {
+    mneumonic: Span<Token>,
+    rs: Register,
+    rt: Register,
+    rd: Register,
+  },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -544,213 +544,667 @@ pub struct Register(pub u16);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Immediate {
-    Label(String),
-    Number(u16),
+  Label(String),
+  Number(u16),
 }
 \end{lstlisting}
 
 The parser iterates through the tokens generated by the lexer, and depending on the mneumonic encountered, expects to find a different instruction format.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 pub fn parse(&mut self) -> Result<Vec<Span<Statement>>, Exception> {
-    let mut statements: Vec<Span<Statement>> = Vec::new();
+  let mut statements: Vec<Span<Statement>> = Vec::new();
 
-    while *self.tok != Token::EOF {
-        let statement : Span<Statement> = match &*self.tok {
-            Token::Label(label) => {
-                Span::new(
-                    Statement::Label(label.clone()),
-                    self.tok.loc,
-                )
-            }
+  while *self.tok != Token::EOF {
+    let statement : Span<Statement> = match &*self.tok {
+      Token::Label(label) => {
+        Span::new(
+          Statement::Label(label.clone()),
+          self.tok.loc,
+        )
+      }
 
-            Token::ADD | Token::SUB => self.parse_rrr_format()?,
-            Token::BEQ  | Token::BNE => self.parse_rri_format()?,
-            Token::SW | Token::LW => self.parse_rir_format()?,
+      Token::ADD | Token::SUB => self.parse_rrr_format()?,
+      Token::BEQ  | Token::BNE => self.parse_rri_format()?,
+      Token::SW | Token::LW => self.parse_rir_format()?,
 
-            _ => return Err(Exception::new(
-                format!("Syntax Error: unexpected token encountered, expected LABEL or INSTRUCTION, got '{:?}'", *self.tok),
-                self.tok.loc,
-            ))
-        };
+      _ => return Err(Exception::new(
+        format!("Syntax Error: unexpected token encountered, expected LABEL or INSTRUCTION, got '{:?}'", *self.tok),
+        self.tok.loc,
+      ))
+    };
 
-        statements.push(statement);
-        self.eat();
-    }
+    statements.push(statement);
+    self.eat();
+  }
 
-    Ok(statements)
+  Ok(statements)
 }
 \end{lstlisting}
 
 I write two functions to parse the different formats of operand, registers and immediates respectively. A register can optionally be encased in square brackets as is convention when addressing memory, however is handled the same regardless. An immediate can take two formats, either a 16 bit number, or a label contained within square brackets. The function switches based on whether it encounters a square bracket or number (throwing an unexpected operand exception otherwise) and parses each situtation seperately.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 // [.label], n16
 fn parse_immediate(&mut self) -> Result<Span<Immediate>, Exception> {
-    self.eat();
-    
-    match *self.tok {
-        Token::Number(n) => Ok(Span::new(Immediate::Number(n), self.tok.loc)),
-        Token::LSQUARE => {
-            let label = self.eat_expect(Token::Label(String::new()))?.try_into().unwrap();
-            self.eat_expect(Token::RSQUARE)?;
-            Ok(label)
-        }
+  self.eat();
+  
+  match *self.tok {
+    Token::Number(n) => Ok(Span::new(
+      Immediate::Number(n), 
+      self.tok.loc
+    )),
 
-        _ => Err(Exception::new(
-            format!("Syntax Error: unexpected token, expected Number or '[Label]', got: '{:?}'", *self.tok),
-            self.tok.loc
-        ))
+    Token::LSQUARE => {
+      let label = self.eat_expect(
+        Token::Label(String::new())
+      )?.try_into().unwrap();
+
+      self.eat_expect(Token::RSQUARE)?;
+      Ok(label)
     }
+
+    _ => Err(Exception::new(
+      format!("Syntax Error: unexpected token, expected Number or '[Label]', got: '{:?}'", *self.tok),
+      self.tok.loc
+    ))
+  }
 }
 
 // $rx, [$rx]
 fn parse_register(&mut self) -> Result<Register, Exception> {
-    self.eat();
-    match *self.tok {
-        Token::Register(reg) => Ok(Register(reg)),
-        Token::LSQUARE => {
-            let register = self.eat_expect(Token::Register(0))?.try_into().unwrap();
-            self.eat_expect(Token::RSQUARE)?;
-            Ok(register)
-        }
+  self.eat();
+  match *self.tok {
+    Token::Register(reg) => Ok(Register(reg)),
+    Token::LSQUARE => {
+      let register = self.eat_expect(Token::Register(0))?
+        .try_into().unwrap();
 
-        _ => Err(Exception::new(
-            format!("Syntax Error: unexpected token, expected Register or '[Register]', got: '{:?}'", *self.tok),
-            self.tok.loc
-        ))
+      self.eat_expect(Token::RSQUARE)?;
+      Ok(register)
     }
+
+    _ => Err(Exception::new(
+      format!("Syntax Error: unexpected token, expected Register or '[Register]', got: '{:?}'", *self.tok),
+      self.tok.loc
+    ))
+  }
 } 
 \end{lstlisting}
 
 When a particular mneumonic is encountered in the top level of the parser, it looks up the corresponding instruction format and calls the corresponding function. Each parsing function uses the \texttt{parse\_register()} and \texttt{parse\_immediate()} functions to handle the operands. Should any expected tokens be missing (e.g. a comma), a syntax error is thrown by the \texttt{eat\_expect()} function. Finally, an Instruction Statement is outputted with a \texttt{Span} container that points to the start and end of the instruction in source code.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 // addi $rt, $rs, [label] | immediate
 fn parse_rri_format(&mut self) -> Result<Span<Statement>, Exception> {
-    let mneumonic = self.tok.clone();
+  let mneumonic = self.tok.clone();
 
-    let rt = self.parse_register()?;
-    self.eat_expect(Token::COMMA)?;
+  let rt = self.parse_register()?;
+  self.eat_expect(Token::COMMA)?;
 
-    let rs = self.parse_register()?;
-    self.eat_expect(Token::COMMA)?;
+  let rs = self.parse_register()?;
+  self.eat_expect(Token::COMMA)?;
 
-    let immediate = self.parse_immediate()?;
+  let immediate = self.parse_immediate()?;
 
-    Ok(Span::new(
-        Statement::Instruction(Instruction::IFormat { 
-            mneumonic: mneumonic.clone(), 
-            rs, 
-            rt, 
-            immediate 
-        }),
-        self.tok.loc - mneumonic.loc
-    ))
+  Ok(Span::new(
+    Statement::Instruction(Instruction::IFormat { 
+      mneumonic: mneumonic.clone(), 
+      rs, 
+      rt, 
+      immediate 
+    }),
+    self.tok.loc - mneumonic.loc
+  ))
 }
 \end{lstlisting}
 
 \subsubsection{Code Generation}
 The compiler runs on a two-pass basis. The first pass is responsible for storing the numerical offsets for each label in the symbol table, and expanding macro instructions into one or more primative instructions. The second pass is responsible for translating the instruction objects into binary machine code. The first pass creates a vector to store all primative (expanded) machine code instructions. It then iterates through the parsed program, keeping an offset of the number of instruction encountered. When a label is encountered, a new entry in the Symbol table is created, mapping the label identfier to the instruction offset. This can be used in the second pass when calculating jump addresses. Should an instruction be countered, the \texttt{expand\_macro()} function is called. This function returns a list of expanded instructions that is appended to the \texttt{machine\_instructions()} vector. The \texttt{expand\_macro()} instruction first determines whether a mneumonic belongs to a primative or macro instruction. If it is a primative instruction, that instruction is returned alone. Else, it uses the template defining each macro instruction to determine the sequence of instructions to return.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 fn first_pass(&mut self) -> Result<Vec<Span<Instruction>>, Exception> {
-    let mut machine_instructions: Vec<Span<Instruction>> = Vec::new();
+  let mut machine_instructions: Vec<Span<Instruction>> = Vec::new();
 
-    let mut offset = 0;
-    for stmt in self.statements.clone() {
-        match &*stmt {
-            // store offset to the label from the start in a symbol table
-            Statement::Label(label) => {
-                self.symbol_table.insert(label.clone(), offset);
-            }
+  let mut offset = 0;
+  for stmt in self.statements.clone() {
+    match &*stmt {
+      // store offset to label in a symbol table
+      Statement::Label(label) => {
+        self.symbol_table.insert(label.clone(), offset);
+      }
 
-            Statement::Instruction(..) => {
-                let mut expanded_macro = self.expand_macro(stmt.as_instruction().unwrap())?;
-                // increment instruction counter by the length of the macro instruction
-                offset += (expanded_macro.len() * 2) as u16;
-                machine_instructions.append(&mut expanded_macro);
-            }
-        }
+      Statement::Instruction(..) => {
+        let mut expanded_macro = self.expand_macro(
+          stmt.as_instruction().unwrap()
+        )?;
+
+        // increment instruction counter by the length of 
+        // the expanded macro instruction
+
+        offset += (expanded_macro.len() * 2) as u16;
+        machine_instructions.append(&mut expanded_macro);
+      }
     }
+  }
 
-    Ok(machine_instructions)
+  Ok(machine_instructions)
 }
 \end{lstlisting}
 
 On the second pass of the compiler, the binary representation for each field in the machine code needs to be calculated. For a register, this is simply the register number (stored in the \texttt{.0} field on the register struct). For the opcode or func fields, these are properties of the mneumonic keyword token. And the immediate representation is calculated by the \texttt{compile\_immediate()} function, which determines whether the operand is a label or immediate value. Should it be a label, either a relative or absolute offset is calculated using the label and current instruction address.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=C]
 pub fn compile_instruction(&mut self, instr: Span<Instruction>) -> Result<u32, Exception> {
-    match &*instr {
-        Instruction::IFormat {
-            mneumonic,
-            rs,
-            rt,
-            immediate,
-        } => {
-            let opcode = mneumonic.get_opcode()?;
-            let rs = rs.0 as u32;
-            let rt = rt.0 as u32;
-            let immediate = self.compile_immediate(
-                &immediate,
-                // set the is_offset flag for B operations
-                **mneumonic == Token::BEQ || **mneumonic == Token::BNE,
-            )?;
+  match &*instr {
+    Instruction::IFormat {
+      mneumonic,
+      rs,
+      rt,
+      immediate,
+    } => {
+      let opcode = mneumonic.get_opcode()?;
+      let rs = rs.0 as u32;
+      let rt = rt.0 as u32;
+      let immediate = self.compile_immediate(
+        &immediate,
+        // set the is_offset flag for B operations
+        **mneumonic == Token::BEQ || **mneumonic == Token::BNE,
+      )?;
 
-            // combine fields into instruction
-            Ok(((opcode) << 28) | (rs << 23) | (rt << 18) 
-                | (immediate << 2))
-        }
-
-        Instruction::RFormat {
-            mneumonic,
-            rs,
-            rt,
-            rd,
-        } => {
-            let opcode = mneumonic.get_opcode()?;
-            let func = mneumonic.get_func()?;
-            let rs = rs.0 as u32;
-            let rt = rt.0 as u32;
-            let rd = rd.0 as u32;
-
-            // combine fields into instruction
-            Ok(((opcode) << 28) | (rs << 23) | (rt << 18) 
-                | (rd << 13) | (func << 9))
-        }
+      // combine fields into instruction
+      Ok(((opcode) << 28) | (rs << 23) | (rt << 18) 
+        | (immediate << 2))
     }
+
+    Instruction::RFormat {
+      mneumonic,
+      rs,
+      rt,
+      rd,
+    } => {
+      let opcode = mneumonic.get_opcode()?;
+      let func = mneumonic.get_func()?;
+      let rs = rs.0 as u32;
+      let rt = rt.0 as u32;
+      let rd = rd.0 as u32;
+
+      // combine fields into instruction
+      Ok(((opcode) << 28) | (rs << 23) | (rt << 18) 
+        | (rd << 13) | (func << 9))
+    }
+  }
 }
 
 pub fn compile_immediate(
-    &self,
-    immediate: &Span<Immediate>,
-    as_offset: bool,
+  &self,
+  immediate: &Span<Immediate>,
+  as_offset: bool,
 ) -> Result<u32, Exception> {
-    match &**immediate {
-        Immediate::Label(label) => {
-            // lookup label in symbol table
-            if let Some(address) = self.symbol_table.get(&*label.clone()) {
-                // if offset, calc relative distance from label 
-                // to the current instruction, else return the address itself
-                Ok(if as_offset {
-                    ((*address - self.word) / 2 - 1) as u32
-                } else {
-                    *address as u32
-                })
-            } else {
-                Err(Exception::new(
-                    format!("Syntax Error: undefined label {:?}", *label),
-                    immediate.loc,
-                ))
-            }
-        }
-
-        Immediate::Number(number) => Ok(*number as u32),
+  match &**immediate {
+    Immediate::Label(label) => {
+      // lookup label in symbol table
+      if let Some(address) = self.symbol_table.get(&*label.clone()) {
+        // if offset, calc relative distance from label 
+        // to the current instruction, else return the address itself
+        Ok(if as_offset {
+          ((*address - self.word) / 2 - 1) as u32
+        } else {
+          *address as u32
+        })
+      } else {
+        Err(Exception::new(
+          format!("Syntax Error: undefined label {:?}", *label),
+          immediate.loc,
+        ))
+      }
     }
+
+    Immediate::Number(number) => Ok(*number as u32),
+  }
 }
 \end{lstlisting}
 
 \subsection{Compiler}
 \subsubsection{Parser}
-Once the source code has been tokenised by the lexer (which can be reused from the assembler), the tokens need to be parsed into an abstract syntax tree following the grammar rules defined in the parser specification in the design section. 
+Once the source code has been tokenised by the lexer (which can be reused from the assembler), the tokens need to be parsed into an abstract syntax tree following the grammar rules defined in the parser specification in the design section. I encapsulated the parser code in a struct, containing the list of tokens, current token, current position and current scope. The current scope is unique for each Block the parser parses, and is used to reference a particular block scope in the Scope Table. 
+
+\begin{lstlisting}[language=C]
+pub struct Parser {
+  tokens: Vec<Span<Token>>,
+  tok: Span<Token>,
+  pos: usize,
+  scope: u32,
+}
+
+impl Parser {
+  pub fn new(tokens: Vec<Span<Token>>) -> Self {
+    Self {
+      tok: tokens.get(0).unwrap().clone(),
+      tokens: tokens,
+      pos: 0,
+      scope: 0,
+    }
+  }
+
+  pub fn parse(tokens: Vec<Span<Token>>) -> Vec<Span<SYMBOL>> {
+    let mut parser = Parser::new(tokens);
+    let mut source = vec![];
+
+    while *parser.tok != Token::EOF {
+      source.push(parser.parse_symbol());
+    }
+
+    source
+  }
+}  
+\end{lstlisting}
+
+There are two functions to help iterate through the source tokens, an \texttt{eat()} function and an \texttt{assert()}. The eat function advances one token, setting the values of the \texttt{self.tok} and \texttt{self.pos} fields. The assert function takes an expected token as a parameter and throws a syntax error if the current token is not the same.
+
+\begin{lstlisting}[language=C]
+pub fn eat(&mut self) {
+  if self.pos + 1 < self.tokens.len() {
+    self.pos += 1;
+    self.tok = self.tokens.get(self.pos).unwrap().clone();
+  }
+}
+
+pub fn assert(&mut self, expect: Token) {
+  if *self.tok != expect {
+    fatal_at!(
+      format!("Syntax Error: expected {:?}, got {:?}", expect, *self.tok),
+      self.tok.loc
+    )
+  }
+}
+\end{lstlisting}
+
+For each iteration of the \texttt{parse()} loop, the \texttt{parse\_symbol()} function is called, generating a node in the Abstract Syntax Tree which is appended to the \texttt{source} vector. The \texttt{parse\_symbol()} function throws an error if the statement is neither a function declaration or constant, otherwise calls their respective parsing functions.
+
+\begin{lstlisting}[language=C]
+fn parse_symbol(&mut self) -> Span<SYMBOL> {
+  match *self.tok {
+    Token::FN => self.parse_fn(),
+    Token::CONST => self.parse_const(),
+    _ => fatal_at!(
+      format!(
+        "Syntax Error: expected 'fn' or 'const', got {:?}",
+        *self.tok
+      ),
+      self.tok.loc
+    ),
+  }
+}
+\end{lstlisting}
+
+When parsing the parameters of a function, I created a vector to hold the parameter bindings. After the parser encounters a '(', it continues to parse bindings while it encounters a comma, breaking once the ')' character has been reached.
+
+\begin{lstlisting}[language=C]
+// FN <ident> LPAREN (<ident>: <type>)* RPAREN (-> <type>)? <block> 
+fn parse_fn(&mut self) -> Span<SYMBOL> {
+  let s_pos = self.tok.loc;
+
+  self.eat();
+  let ident = self.parse_identifier();
+
+  self.assert(Token::LPAREN);
+  self.eat();
+
+  let mut bindings: Vec<Span<Binding>> = Vec::new();
+  while *self.tok != Token::RPAREN {
+    bindings.push(self.parse_binding());
+
+    if *self.tok != Token::COMMA {
+      break;
+    }
+
+    self.eat();
+  }
+
+  self.eat();
+
+  // if a '->' token follows the parameters, parse the return type,
+  // else default to a VOID type
+  let ret_ty = if *self.tok == Token::ARROW {
+    self.eat();
+    self.parse_type()
+  } else {
+    TYPE::VOID
+  };
+
+  let body = self.parse_block();
+
+  Span::new(
+    SYMBOL::Function {
+      ident,
+      bindings,
+      ret_ty,
+      body: Box::new(body),
+    },
+    s_pos + self.tok.loc,
+  )
+}
+
+// CONST <ident>: <type> = <expr>;
+fn parse_const(&mut self) -> Span<SYMBOL> {
+  let s_pos = self.tok.loc;
+
+  self.eat();
+
+  let binding = self.parse_binding();
+  self.assert(Token::EQ);
+  self.eat();
+
+  let expr = self.parse_expression();
+  self.assert(Token::SEMICOLON);
+  self.eat();
+
+  Span::new(
+    SYMBOL::Const {
+      binding: binding,
+      expr: Box::new(expr),
+    },
+    s_pos + self.tok.loc,
+  )
+}
+\end{lstlisting}
+
+A block consists of a sequence of semi colon terminated satements contained between two curly braces. 
+
+\begin{lstlisting}[language=C]
+fn parse_block(&mut self) -> Span<Block> {
+  let s_pos = self.tok.loc;
+  self.assert(Token::LBRACE);
+  self.eat();
+
+  let mut stmts: Vec<Span<STATEMENT>> = Vec::new();
+  while *self.tok != Token::RBRACE {
+    stmts.push(self.parse_statement());
+  }
+
+  self.eat();
+
+  // assign a unique scope to the block at creation
+  Span::new(
+    Block { 
+      stmts, 
+      scope: self.next_scope() 
+    }, 
+    s_pos + self.tok.loc
+  )
+}
+\end{lstlisting}
+
+When entering the \texttt{parse\_statement()} function, use the keyword token to determine how to parse the subsequence tokens. Should a statement have no keyword preceeding it, it is parsed as an expression terminated by a semi colon. 
+
+\begin{lstlisting}[language=C]
+fn parse_statement(&mut self) -> Span<STATEMENT> {
+  match *self.tok {
+    Token::LET => self.parse_declaration(),
+    Token::RETURN => self.parse_return(),
+    Token::IF => self.parse_if(),
+    Token::WHILE => self.parse_while(),
+    Token::FOR => self.parse_for(),
+
+    _ => {
+      let expr = self.parse_expression();
+      self.assert(Token::SEMICOLON);
+      self.eat();
+      Span::new(
+        STATEMENT::Expression {
+          expr: Box::new(expr.clone()),
+        },
+        expr.loc,
+      )
+    }
+  }
+}
+
+// while <expression> <block> 
+fn parse_while(&mut self) -> Span<STATEMENT> {
+  let s_pos = self.tok.loc;
+  self.eat();
+  let cond = self.parse_expression();
+  let body = self.parse_block();
+
+  Span::new(
+    STATEMENT::While { 
+      cond: Box::new(cond), 
+      body: Box::new(body) 
+    },
+    s_pos + self.tok.loc
+  )
+}
+
+// if <condition> <block> (else (<block> | <if>))?
+fn parse_if(&mut self) -> Span<STATEMENT> {
+  let s_pos = self.tok.loc;
+
+  self.eat();
+  let cond = self.parse_expression();
+  let conseq = self.parse_block();
+  let mut altern = None;
+
+  // parse alternative if an else block exists
+  // else set altern to None 
+  if *self.tok == Token::ELSE {
+    self.eat();
+    // if ELSE IF, then recursively parse the if block as the 
+    // alternative attribute, otherwise parse a block 
+    if *self.tok == Token::IF {
+      altern = Some(Box::new(
+        Span::new(Block {
+          stmts: vec![self.parse_if()],
+          scope: self.next_scope(),
+        }, s_pos + self.tok.loc)
+      ));
+
+      self.scope += 1;
+    } else {
+      altern = Some(Box::new(self.parse_block()));
+    }
+  }
+
+  Span::new(
+      STATEMENT::If { 
+        cond: Box::new(cond), 
+        conseq: Box::new(conseq), 
+        altern 
+      },
+      s_pos + self.tok.loc
+  )
+}
+\end{lstlisting}
+
+The \texttt{parse\_expression()} handles expressions ranging from arithmetic operations to variable assignments. It parses the left hand side of any operation as a full pratt expression, meaning statements like \texttt{\&(vram + 0x0b) = 10} can be represented with arithmetic operations on the left hand side of an assignment. It then determines whether the folowing token is an '\texttt{=}' or increment operation such as '\texttt{+=}', if it encounters one of the two, it is an assignment operation and handled by the \texttt{parse\_assign()} function, else it simply returns the expression itself. The \texttt{parse\_assign()} function simply parses the right hand side as another pratt expression and returns the result in an \texttt{EXPRESSION::Assign} enum variant. 
+
+\begin{lstlisting}[language=C]
+fn parse_expression(&mut self) -> Span<EXPRESSION> {
+  let expr = match *self.tok {
+    _ => self.parse_pratt(0),
+  };
+
+  match &*self.tok {
+    Token::EQ => self.parse_assign(expr),
+    tok if BINOP::from_assign_op(tok.clone()).is_some() => self.parse_assign_op(expr),
+    _ => expr,
+  }
+}
+
+fn parse_assign(&mut self, lhs: Span<EXPRESSION>) -> Span<EXPRESSION> {
+  let s_pos = self.tok.loc;
+  self.eat();
+  let rhs = self.parse_expression();
+
+  Span::new(
+    EXPRESSION::Assign { 
+      lhs: Box::new(lhs), 
+      rhs: Box::new(rhs) 
+    }, 
+    s_pos + self.tok.loc
+  )
+}
+\end{lstlisting}
+
+\subsubsubsection{Pratt Parser}
+Below is the impelmentation of the Pratt parsing algorithm designed in the previous section. I extrapolated the prefix code into the \texttt{parse\_atom()} function. 
+
+\begin{lstlisting}[language=C]
+fn parse_pratt(&mut self, rbp: i32) -> Span<EXPRESSION> {
+  let s_pos = self.tok.loc;
+
+  // parse LHS, including prefixes (parenthesis, literals)
+  // e.g. ++x, (10+2), &x
+  let mut lhs = self.parse_atom();
+
+
+  // parse all postfix operations for the LHS
+  // f(), a[], x++
+  while let Some(op) = POSTOP::from((*self.tok).clone()) {
+    self.eat();
+    lhs = Span::new(
+      EXPRESSION::Postfix { lhs: Box::new(lhs), op },
+      s_pos + self.tok.loc,
+    );
+  }
+
+  // continue parsing into the RHS of the expression while 
+  // binary operations of a higher precedence are encountered
+  while let Some(op) = BINOP::from((*self.tok).clone()) {
+    if op.get_precedence() < rbp {
+      break;
+    }
+
+    self.eat();
+    let rhs = self.parse_pratt(op.get_precedence() + 1);
+
+    // set LHS to newly parsed expression so it can be built
+    // off of each iteration 
+    lhs = Span::new(
+      EXPRESSION::Infix {
+        lhs: Box::new(lhs),
+        op: op,
+        rhs: Box::new(rhs),
+      },
+      s_pos + self.tok.loc,
+    );
+  }
+
+  lhs
+}
+\end{lstlisting}
+
+The \texttt{parse\_atom()} function handles parenthesis that contain a regular pratt expression. Implementing this as an atom allows the order of operations to be followed since whatever is contained within the brackets will be evaluated before any superceeding operations. It also handles unary operations that come before an expression, e.g. (\texttt{-10}, \texttt{\&x}). Each prefix operation is given a binding precedence, and this binding precedence is used as the base precedence for the \texttt{parse\_pratt\_expression()} call, preventing \texttt{*x - 4} being parsed as \texttt{DEREF(x - 4)} instead of \texttt{DEREF(x) - 4}. 
+
+\begin{lstlisting}[language=C]
+fn parse_atom(&mut self) -> Span<EXPRESSION> {
+  let s_pos = self.tok.loc;
+
+  let expr = match &*self.tok.clone() {
+    Token::LPAREN => {
+      self.eat();
+      let expr = self.parse_expression();
+      self.assert(Token::RPAREN);
+      self.eat();
+      expr
+    }
+
+    tok if UNOP::from(tok.clone()).is_some() => {
+      let prefix = UNOP::from((*self.tok).clone()).unwrap();
+      self.eat();
+      let rhs = self.parse_pratt(prefix.get_precedence());
+
+      Span::new(
+        EXPRESSION::Prefix { 
+          op: prefix, 
+          rhs: Box::new(rhs) 
+          }, 
+          s_pos + self.tok.loc
+       )
+    }
+
+    _=> self.parse_literal(),
+  };
+
+  // if '(' after atom, parse as a function call
+  match *self.tok {
+    Token::LPAREN => self.parse_call(expr),
+    _ => expr
+  }
+}
+\end{lstlisting}
+
+The most fundemental unit of the abstract syntax tree is the program literal. Each one corresponds to a single token therefore all the \texttt{parse\_literal()} function has to do is map the token to its corresponding expression literal. 
+
+\begin{lstlisting}[language=C]
+fn parse_literal(&mut self) -> Span<EXPRESSION> {
+  let s_pos = self.tok.loc;
+  let expr = match &*self.tok {
+    Token::Number(n) => EXPRESSION::Literal { 
+      lit: Span::new(LITERAL::Int(*n), 
+      self.tok.loc) 
+    },
+
+    Token::Char(ch) => EXPRESSION::Literal { 
+      lit: Span::new(LITERAL::Char(*ch), 
+      self.tok.loc) 
+    },
+
+    Token::TRUE => EXPRESSION::Literal { 
+      lit: Span::new(LITERAL::Bool(true), self.tok.loc) 
+    },
+
+    // [...]
+
+    _ => fatal_at!(
+      format!(
+        "Syntax Error: expected program literal, got {:?}",
+        *self.tok
+      ),
+      self.tok.loc
+    ),
+  };
+
+  self.eat();
+  Span::new(expr, s_pos)
+}
+\end{lstlisting}
+
+Finally, the last component when parsing a program is to handle the function calls. They are composed of an identifier, followed by  '(' with 0 or more arguments and a terminating ')'. The arguments consist of a series of expressions seperated by a comma.  Iteratively parsing expressions whilst a comma is encountered, and storing the result in a vector is sufficient to collect the arguments which are passed as an attribute into the \texttt{EXPRESSION::Call} variant. 
+
+\begin{lstlisting}[language=C]
+fn parse_call(&mut self, func: Span<EXPRESSION>) -> Span<EXPRESSION> {
+  let s_pos = self.tok.loc;
+
+  self.assert(Token::LPAREN);
+  self.eat();
+
+  // continue collecting arguments while a ',' is encountered 
+  // and before the terminating ')' 
+  let mut args: Vec<Span<EXPRESSION>> = Vec::new();
+  while *self.tok != Token::RPAREN {
+    args.push(self.parse_expression());
+
+    if *self.tok != Token::COMMA {
+      break;
+    }
+
+    self.eat();
+  }
+
+  self.eat();
+  Span::new(EXPRESSION::Call { 
+    func: Box::new(func), 
+    args: args 
+  }, s_pos + self.tok.loc)
+}
+\end{lstlisting}
+
+\subsubsection{Optimisations and Sentiment Analysis}
+\subsubsubsection{Const Folding}
+\subsubsubsection{Type Checking}
+\subsubsubsection{Scope Table Builder}
+
+\subsubsection{Intermediate Representation}
+\subsubsection{Code Generation}
