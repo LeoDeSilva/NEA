@@ -1202,8 +1202,371 @@ fn parse_call(&mut self, func: Span<EXPRESSION>) -> Span<EXPRESSION> {
 \end{lstlisting}
 
 \subsubsection{Optimisations and Sentiment Analysis}
+\subsubsubsection{AST Traveral}
+The optimisations require the ability to traverse every node in the abstract syntax tree. I created a trait to implement a depth first search traversal that could be itself implemented by the optimisation structs. The \texttt{Walker} trait contains \texttt{walk()} functions that recursively iterate over all child nodes for a particular node in the abstract syntax tree, and call abstract \texttt{visit()} methods that are themselves overwritten in the optimisation code to handle that particular node. The \texttt{walk()} method is called on the root node of the AST, and the Walker trait recursively visits each child node, calling the corresponding \texttt{visit()} method for each. 
+
+\begin{lstlisting}[language=C]
+pub trait Walker {
+
+fn walk(&mut self, ast: &mut Vec<Span<SYMBOL>>) {
+  for sym in ast {
+    self.visit_symbol(sym);
+  }
+}
+
+fn walk_symbol(&mut self, symbol: &mut Span<SYMBOL>) {
+    match &mut **symbol {
+      SYMBOL::Const { binding, expr } => {
+        self.visit_binding(binding);
+        self.visit_expression(&mut **expr);
+      }, 
+
+      SYMBOL::Function { ident, bindings, ret_ty, body } => {
+        self.visit_identifier(&mut *ident);
+        for binding in bindings {
+          self.visit_binding(&mut *binding);
+        }
+
+        self.visit_type(&mut *ret_ty);
+        self.visit_block(body);
+      }
+  } 
+}
+
+fn walk_block(&mut self, block: &mut Span<Block>) {
+  for stmt in &mut block.stmts {
+    self.visit_statement(stmt);
+  }
+}
+
+//[...]
+}
+\end{lstlisting}
+
 \subsubsubsection{Const Folding}
+The first optimisation my compiler performs involves pre calculating the result of expressions and storing the result as a node in place of the infix node. The walker visits each node in the abstract syntax tree. If it encounters an infix node, it recursively calls the \texttt{fold\_constant()} function on the left and right hand side of the expression. The fold constants function checks if the lhs and rhs have been evaluated as constants, if they have - it performs the calculation and stores the result in a Literal node. 
+
+\begin{lstlisting}[language=C]
+pub struct ConstFolding;
+impl ConstFolding {
+
+pub fn run(ast: &mut Vec<Span<SYMBOL>>) {
+  let mut cf = ConstFolding;
+  cf.walk(ast);
+}
+
+fn fold_constant(&mut self, e: &Span<EXPRESSION>) 
+  -> Option<Span<EXPRESSION>> {
+  match &**e {
+    EXPRESSION::Literal { .. } => return Some(e.clone()),
+
+    // recursively fold the lhs and rhs of an expression 
+    // if both fold to constants, combine them and
+    // replace the current node
+    EXPRESSION::Infix { lhs, op, rhs } => {
+      if let (
+        Some(EXPRESSION::Literal { lit: lhs }), 
+        Some(EXPRESSION::Literal { lit: rhs })) 
+      = (self.fold_constant(lhs), self.fold_constant(rhs)) {
+        let result = match op {
+          BINOP::ADD => Some(LITERAL::Int(lhs + rhs)),
+          BINOP::MUL => Some(LITERAL::Int(lhs * rhs)),
+          BINOP::DIV => Some(LITERAL::Int(lhs / rhs)),
+          BINOP::OR  => Some(LITERAL::Int(lhs | rhs)),
+          BINOP::XOR => Some(LITERAL::Int(lhs ^ rhs)),
+          BINOP::AND => Some(LITERAL::Int(lhs & rhs)),
+          _ => None,
+        };
+
+        // return the folded literal node
+        if let Some(lit) = result {
+          return Some(Span::new(
+            EXPRESSION::Literal { 
+              lit: Span::new(lit, e.loc) 
+            }, e.loc
+          ))
+        }
+      } else {
+        return self.fold_constant(lhs)
+      }
+    },
+
+    _ => {},
+  }
+
+  None
+} 
+}
+
+// Walker visits each node in the AST, visit_expression() 
+// is called on each infix node to fold the lhs and rhs
+impl Walker for ConstFolding {
+  fn visit_expression(&mut self, e: &mut Span<crate::ast::EXPRESSION>) {
+    if let Some(lit) = self.fold_constant(e) {
+      *e = lit;
+    } else {
+      self.walk_expression(e);
+    }
+  }
+}
+\end{lstlisting}
+
 \subsubsubsection{Type Checking}
+The type checker visits every node in the AST and uses the \texttt{resolve()} function to determine what data type the child nodes evaluate into. This process uses the symbol table (a HashMap containing all the variables, constants, and function declarations accessible within a particular scope) to resolve the type of variables. For an infix expression, \texttt{resolve()} is called twice, for the lhs and rhs respectively, and their types are compared to determine compatability.  
+
+\begin{lstlisting}[language=C]
+pub struct Typeck<'a> {
+  // a reference to the symbol table generated after parsing
+  symtbl: &'a mut SymbolTable,
+
+  // contains the current scope 
+  scope: Option<ScopeId>,
+}
+
+impl<'a> Typeck<'a> {
+  fn new(symtbl: &'a mut SymbolTable) -> Self {
+    Self {
+      symtbl: symtbl,
+      scope: None,
+    }
+  }
+
+  pub fn run(ast: &mut Vec<Span<SYMBOL>>, symtbl: &'a mut SymbolTable) {
+    let mut typeck = Typeck::new(symtbl);
+    typeck.walk(ast);
+  } 
+}
+
+impl<'a> Walker for Typeck<'a> {
+  fn visit_symbol(&mut self, s: &mut Span<SYMBOL>) {
+    match &**s {
+      SYMBOL::Function {
+        ret_ty,
+        body,
+        ..
+      } => {
+        self.resolve_block(body, Some(&ret_ty));
+      }
+
+      SYMBOL::Const { binding, expr } => {
+        self.resolve_expression(expr, Some(&binding.ty));
+      }
+    };
+  }
+}
+\end{lstlisting}
+
+The following function is called to determine whether an encountered type is of the expected type.
+
+\begin{lstlisting}[language=C]
+fn verify(&self, got: &TYPE, expected: Option<&TYPE>, loc: Loc) -> TYPE {
+  if let Some(expected) = expected {
+    if got != expected {
+      fatal_at!(
+        format!(
+          "Linking Error: expected type '{}', got '{}'", 
+          expected, got
+        ),
+        loc
+      );
+    }
+  }
+
+  got.clone()
+} 
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn resolve_statement(
+  &mut self, 
+  stmt: &Span<STATEMENT>, 
+  expected: Option<&TYPE>) -> TYPE {
+
+  let got = match &**stmt {
+
+    // validate that the expression evaluates to 
+    // the binding type, return VOID since declarations 
+    // do not return a value
+    STATEMENT::Declaration { binding, expr } => {
+      self.resolve_expression(&**expr, Some(&binding.ty));
+      TYPE::VOID
+    },
+
+    STATEMENT::If {
+      cond,
+      conseq,
+      altern,
+    } => {
+      // ensure the condition evaluates to a boolean
+      self.resolve_expression(cond, Some(&TYPE::BOOL));
+      let conseq_ty = self.resolve_block(&**conseq, None);
+
+      // ensure the if-then and else branches evaluate 
+      // to the same type
+      if let Some(altern) = altern {
+        let altern_ty = self.resolve_block(&**altern, expected);
+
+        if altern_ty != conseq_ty {
+          fatal_at!(
+            format!("Linking Error: mismatched types")
+            stmt.loc
+          );
+        }
+      }
+
+      conseq_ty
+    }
+  };
+
+  self.verify(&got, expected, stmt.loc)
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn resolve_block(
+  &mut self, 
+  block: &Span<Block>, 
+  expected: Option<&TYPE>) -> TYPE {
+
+  // set current scope to the block scope
+  self.scope = Some(block.scope.clone());
+  let mut ret_ty: Option<TYPE> = None;
+
+  for stmt in &block.stmts {
+    let stmt_ty = self.resolve_statement(&stmt, None);
+
+    // the only statement that doesn't return VOID is return 
+    // verify the return statement if of the correct type 
+    // and store as the return type for the block
+    if stmt_ty != TYPE::VOID {
+      self.verify(&stmt_ty, expected, stmt.loc);
+      ret_ty = Some(stmt_ty);
+    }
+  }
+
+  // now block has been evaluated, return to parent scope
+  self.scope = self.symtbl.parent_scope(self.scope.unwrap());
+
+  match ret_ty {
+    Some(ty) => ty,
+    _ => TYPE::VOID,
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn resolve_expression(&mut self, expr: &Span<EXPRESSION>, expected: Option<&TYPE>) -> TYPE {
+  let got = match &**expr {
+    EXPRESSION::Literal { lit } => lit.ty(),
+    EXPRESSION::Infix { lhs, rhs , op} => self.resolve_infix(lhs, op, rhs),
+    EXPRESSION::Postfix { lhs, op } => self.resolve_postfix(lhs, op),
+    EXPRESSION::Prefix { op, rhs } => self.resolve_prefix(op, rhs),
+    EXPRESSION::Call { func, args } => self.resolve_call(func, args, expr.loc),
+    EXPRESSION::Assign { lhs, rhs } => {
+      let lhs_ty = self.resolve_expression(lhs, None);
+      self.resolve_expression(rhs, Some(&lhs_ty));
+      TYPE::VOID
+    }
+
+    EXPRESSION::Variable { ident } => self
+      .symtbl
+      .resolve_variable(self.scope.expect("could not resolve scope"), ident)
+      .expect("could not resolve variable").ty
+  };
+
+  self.verify(&got, expected, expr.loc)
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+    fn resolve_call(
+        &mut self,
+        func: &Span<EXPRESSION>,
+        args: &Vec<Span<EXPRESSION>>,
+        loc: Loc,
+    ) -> TYPE {
+        let ident = if let EXPRESSION::Variable { ident } = &**func {
+            ident
+        } else {
+            fatal!("Linking Error: attempt to call non-identifier");
+        };
+
+        let (bindings, ret_ty) = self.symtbl.resolve_fn(ident).unwrap();
+        if args.len() != bindings.len() {
+            fatal_at!(
+                format!("Linking Error: mismatched argument count when calling '{}', expected: {}, got: {}", 
+                ident.ident, 
+                bindings.len(), 
+                args.len()), 
+            loc)
+        }
+
+        for (arg, binding) in args.iter().zip(bindings.into_iter()) {
+            self.resolve_expression(arg, Some(&binding.ty));
+        }
+
+        ret_ty
+    }
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+    fn resolve_infix(
+        &mut self,
+        lhs: &Span<EXPRESSION>,
+        op: &BINOP,
+        rhs: &Span<EXPRESSION>,
+    ) -> TYPE {
+        let lhs_ty = self.resolve_expression(lhs, None);
+        let rhs_ty = self.resolve_expression(rhs, None);
+
+        match op {
+            BINOP::ADD | BINOP::SUB  => { 
+                self.verify_compatible(&rhs_ty, vec![&TYPE::INT, &TYPE::CHAR, 
+                    &TYPE::PTR(Box::new(TYPE::INT)), &TYPE::PTR(Box::new(TYPE::CHAR)) ], rhs.loc);
+
+                self.verify_compatible(&lhs_ty, vec![&TYPE::INT, &TYPE::CHAR, 
+                    &TYPE::PTR(Box::new(TYPE::INT)), &TYPE::PTR(Box::new(TYPE::CHAR)) ], lhs.loc)
+            } ,
+
+
+            BINOP::LT | BINOP::LTE | BINOP::GT | BINOP::GTE | BINOP::EE | BINOP::NE  => { 
+                self.verify_compatible(&lhs_ty, vec![&TYPE::INT, &TYPE::CHAR], lhs.loc);
+                self.verify_compatible(&rhs_ty, vec![&TYPE::INT, &TYPE::CHAR], rhs.loc);
+                TYPE::BOOL
+            } ,
+
+            BINOP::MUL | BINOP::DIV | BINOP::AND | BINOP::OR | BINOP::XOR => { 
+                self.verify(&lhs_ty, Some(&TYPE::INT), lhs.loc);
+                self.verify(&rhs_ty, Some(&TYPE::INT), rhs.loc)
+            },
+
+            BINOP::LAND | BINOP::LOR => self.verify(&lhs_ty, Some(&TYPE::BOOL), lhs.loc)
+        }
+    }
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+    fn resolve_prefix(&mut self, op: &UNOP, rhs: &Span<EXPRESSION>) -> TYPE {
+        match op {
+            UNOP::PTR => TYPE::PTR(Box::new(self.resolve_expression(rhs, None))),
+            UNOP::DEREF => {
+                let ty = self.resolve_expression(rhs, None);
+                if let TYPE::PTR(ty) = ty {
+                    *ty
+                } else {
+                    fatal_at!(
+                        format!("Linking Error: cannot dereference type '{}'", ty),
+                        rhs.loc
+                    );
+                }
+            }
+
+            UNOP::NEG | UNOP::LNOT => self.resolve_expression(rhs, Some(&TYPE::INT)),
+            UNOP::NOT => self.resolve_expression(rhs, Some(&TYPE::BOOL)),
+        }
+    } 
+\end{lstlisting}
+
 \subsubsubsection{Scope Table Builder}
 
 \subsubsection{Intermediate Representation}
