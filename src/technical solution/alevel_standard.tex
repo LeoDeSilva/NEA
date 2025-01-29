@@ -6,20 +6,20 @@
     \hline 
     Group A & & \\
     \hline
-    1.1 & Complex User Defined Algorithm: a recursive Pratt parsing algorithm is used to convert a linked list of Tokens into an Abstract Syntax Tree data structure representing the program and order of operations within. & \\
+    1.1 & Complex User Defined Algorithm: a recursive Pratt parsing algorithm is used to convert a linked list of Tokens into an Abstract Syntax Tree data structure representing the program and order of operations within. & \texttt{parse\_pratt()} (p. \pageref{PrattParser}) \\
     \hline
-    1.2 & A tree data structure is used to store parsed nodes in an Abstract Syntax Tree. & \\
+    1.2 & A tree data structure is used to store parsed nodes in an Abstract Syntax Tree. & \texttt{SYMBOL} (p. \pageref{AST}) \\
     \hline
-    1.3 & A depth first search graph traversal algorithm is used when evaluatting the result of an arithmetic operation at compile time, and substituting it with a constant. & \\
+    1.3 & A depth first search graph traversal algorithm is used when evaluatting the result of an arithmetic operation at compile time, and substituting it with a constant. & \texttt{Walker} (p. \pageref{Walker})\\
     \hline
     1.4 & A stack data structure is used to store return addresses of the PC (program counter) from subroutines in the emulator during \texttt{call} and \texttt{ret} instructions. & \\
     \hline
-    1.5 & Complex user-defined use of object oriented programming using both composition, aggregation, and interfaces to relate common behaviour between nodes in the abstract syntax tree. & \\
+    1.5 & Complex user-defined use of object oriented programming using both composition, aggregation, and interfaces to relate common behaviour between nodes in the abstract syntax tree. & \texttt{SYMBOL, EXPRESSION, Binding} (p. \pageref{AST})\\
     \hline
-    1.6 & Dynamic Generation of objects is used in both the parser and the lexer when compiling user's programs and representing them as nodes or tokens. & \\
+    1.6 & Dynamic Generation of objects is used in both the parser and the lexer when compiling user's programs and representing them as nodes or tokens. & \texttt{parse\_symbol()}, (p.\pageref{CompilerParseSymbol}), \texttt{parse\_rri\_format()} (p.\pageref{AssemblerParseRRIFormat})\\
     \hline
     Group B & & \\
     \hline
-    2.1 & Source code programs are read in from a text file and compiled, the machine code programs are written to a binary file & \texttt{LION\_read\_file()}, (p. \pageref{LIONReadFile})\\
+    2.1 & Source code programs are read in from a text file and compiled, the machine code programs are written to a binary file & \texttt{LION\_read\_file()}, (p.\pageref{LIONReadFile})\\
     \hline
 \end{longtable}

@@ -634,6 +634,7 @@ fn parse_register(&mut self) -> Result<Register, Exception> {
 
 When a particular mneumonic is encountered in the top level of the parser, it looks up the corresponding instruction format and calls the corresponding function. Each parsing function uses the \texttt{parse\_register()} and \texttt{parse\_immediate()} functions to handle the operands. Should any expected tokens be missing (e.g. a comma), a syntax error is thrown by the \texttt{eat\_expect()} function. Finally, an Instruction Statement is outputted with a \texttt{Span} container that points to the start and end of the instruction in source code.
 
+\label{AssemblerParseRRIFormat}
 \begin{lstlisting}[language=C]
 // addi $rt, $rs, [label] | immediate
 fn parse_rri_format(&mut self) -> Result<Span<Statement>, Exception> {
@@ -769,6 +770,7 @@ pub fn compile_immediate(
 \subsubsection{Parser}
 Once the source code has been tokenised by the lexer (which can be reused from the assembler), the tokens need to be parsed into an abstract syntax tree following the grammar rules defined in the parser specification in the design section. I encapsulated the parser code in a struct, containing the list of tokens, current token, current position and current scope. The current scope is unique for each Block the parser parses, and is used to reference a particular block scope in the Scope Table. 
 
+
 \begin{lstlisting}[language=C]
 pub struct Parser {
   tokens: Vec<Span<Token>>,
@@ -798,6 +800,114 @@ impl Parser {
     source
   }
 }  
+\end{lstlisting}
+
+The parser outputs an Abstrat Syntax Tree composed of nodes, each node representing a program element. The formal grammar that dictates the nodes was designed in the Design section of the pratt parser.
+
+\label{AST}
+\begin{lstlisting}[language=C]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum SYMBOL {
+  Const {
+    binding: Span<Binding>,
+    expr: Box<Span<EXPRESSION>>,
+  },
+
+  Function {
+    ident: Span<Identifier>,
+    bindings: Vec<Span<Binding>>,
+    ret_ty: TYPE,
+    body: Box<Span<Block>>, 
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum STATEMENT {
+  Declaration {
+    binding: Span<Binding>,
+    expr: Box<Span<EXPRESSION>>,
+  },
+  
+  If {
+    cond: Box<Span<EXPRESSION>>,
+    conseq: Box<Span<Block>>,
+    altern: Option<Box<Span<Block>>>
+  },
+
+  While {
+    cond: Box<Span<EXPRESSION>>,
+    body: Box<Span<Block>>,
+  },
+
+  For {
+    init: Box<Span<STATEMENT>>,
+    cond: Box<Span<EXPRESSION>>,
+    inc: Box<Span<EXPRESSION>>,
+    body: Box<Span<Block>>,
+  },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EXPRESSION {
+  Literal { lit: Span<LITERAL> },
+
+  Call {
+    func: Box<Span<EXPRESSION>>,
+    args: Vec<Span<EXPRESSION>>,
+  },
+
+  Infix {
+    lhs: Box<Span<EXPRESSION>>,
+    op: BINOP,
+    rhs: Box<Span<EXPRESSION>>,
+  }, 
+
+  Prefix {
+    op: UNOP,
+    rhs: Box<Span<EXPRESSION>>
+  },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LITERAL {
+  Int(u16),
+  Char(char),
+  Bool(bool),
+}
+
+impl LITERAL {
+  // resolve the numerical value of the literal 
+  pub fn unwrap(&self) -> u16 {
+    match self {
+      LITERAL::Char(ch) => *ch as u16,
+      LITERAL::Bool(b) => *b as u16,
+      LITERAL::Int(n) => *n,
+    }
+  }
+
+  // resolve the data type of the Literal
+  pub fn ty(&self) -> TYPE {
+    match self {
+      LITERAL::Char(_) => TYPE::CHAR,
+      LITERAL::Bool(_) => TYPE::BOOL,
+      LITERAL::Int(_) => TYPE::INT,
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Block {
+  pub stmts: Vec<Span<STATEMENT>>,
+
+  // reference to block scope in the Scope Table
+  pub scope: ScopeId, 
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Binding {
+  pub ident: Span<Identifier>,
+  pub ty: TYPE,
+} 
 \end{lstlisting}
 
 There are two functions to help iterate through the source tokens, an \texttt{eat()} function and an \texttt{assert()}. The eat function advances one token, setting the values of the \texttt{self.tok} and \texttt{self.pos} fields. The assert function takes an expected token as a parameter and throws a syntax error if the current token is not the same.
@@ -840,6 +950,7 @@ fn parse_symbol(&mut self) -> Span<SYMBOL> {
 
 When parsing the parameters of a function, I created a vector to hold the parameter bindings. After the parser encounters a '(', it continues to parse bindings while it encounters a comma, breaking once the ')' character has been reached.
 
+\label{CompilerParseSymbol}
 \begin{lstlisting}[language=C]
 // FN <ident> LPAREN (<ident>: <type>)* RPAREN (-> <type>)? <block> 
 fn parse_fn(&mut self) -> Span<SYMBOL> {
@@ -1050,6 +1161,7 @@ fn parse_assign(&mut self, lhs: Span<EXPRESSION>) -> Span<EXPRESSION> {
 \subsubsubsection{Pratt Parser}
 Below is the impelmentation of the Pratt parsing algorithm designed in the previous section. I extrapolated the prefix code into the \texttt{parse\_atom()} function. 
 
+\label{PrattParser}
 \begin{lstlisting}[language=C]
 fn parse_pratt(&mut self, rbp: i32) -> Span<EXPRESSION> {
   let s_pos = self.tok.loc;
@@ -1205,6 +1317,7 @@ fn parse_call(&mut self, func: Span<EXPRESSION>) -> Span<EXPRESSION> {
 \subsubsubsection{AST Traveral}
 The optimisations require the ability to traverse every node in the abstract syntax tree. I created a trait to implement a depth first search traversal that could be itself implemented by the optimisation structs. The \texttt{Walker} trait contains \texttt{walk()} functions that recursively iterate over all child nodes for a particular node in the abstract syntax tree, and call abstract \texttt{visit()} methods that are themselves overwritten in the optimisation code to handle that particular node. The \texttt{walk()} method is called on the root node of the AST, and the Walker trait recursively visits each child node, calling the corresponding \texttt{visit()} method for each. 
 
+\label{Walker}
 \begin{lstlisting}[language=C]
 pub trait Walker {
 
@@ -1455,22 +1568,31 @@ fn resolve_block(
 \end{lstlisting}
 
 \begin{lstlisting}[language=C]
-fn resolve_expression(&mut self, expr: &Span<EXPRESSION>, expected: Option<&TYPE>) -> TYPE {
+fn resolve_expression(
+  &mut self, 
+  expr: &Span<EXPRESSION>, 
+  expected: Option<&TYPE>) -> TYPE {
+
   let got = match &**expr {
+    // base case for recursive expression
     EXPRESSION::Literal { lit } => lit.ty(),
-    EXPRESSION::Infix { lhs, rhs , op} => self.resolve_infix(lhs, op, rhs),
-    EXPRESSION::Postfix { lhs, op } => self.resolve_postfix(lhs, op),
-    EXPRESSION::Prefix { op, rhs } => self.resolve_prefix(op, rhs),
-    EXPRESSION::Call { func, args } => self.resolve_call(func, args, expr.loc),
+
+    EXPRESSION::Infix { lhs, rhs , op} 
+      => self.resolve_infix(lhs, op, rhs),
+
+    // [...]
+
     EXPRESSION::Assign { lhs, rhs } => {
+      // ensure rhs and lhs are of the same type
       let lhs_ty = self.resolve_expression(lhs, None);
       self.resolve_expression(rhs, Some(&lhs_ty));
       TYPE::VOID
     }
 
+    // lookup the variable in the current scope 
     EXPRESSION::Variable { ident } => self
       .symtbl
-      .resolve_variable(self.scope.expect("could not resolve scope"), ident)
+      .resolve_variable(self.scope, ident)
       .expect("could not resolve variable").ty
   };
 
@@ -1479,95 +1601,253 @@ fn resolve_expression(&mut self, expr: &Span<EXPRESSION>, expected: Option<&TYPE
 \end{lstlisting}
 
 \begin{lstlisting}[language=C]
-    fn resolve_call(
-        &mut self,
-        func: &Span<EXPRESSION>,
-        args: &Vec<Span<EXPRESSION>>,
-        loc: Loc,
-    ) -> TYPE {
-        let ident = if let EXPRESSION::Variable { ident } = &**func {
-            ident
-        } else {
-            fatal!("Linking Error: attempt to call non-identifier");
-        };
+fn resolve_call(
+  &mut self,
+  func: &Span<EXPRESSION>,
+  args: &Vec<Span<EXPRESSION>>,
+  loc: Loc,
+) -> TYPE {
 
-        let (bindings, ret_ty) = self.symtbl.resolve_fn(ident).unwrap();
-        if args.len() != bindings.len() {
-            fatal_at!(
-                format!("Linking Error: mismatched argument count when calling '{}', expected: {}, got: {}", 
-                ident.ident, 
-                bindings.len(), 
-                args.len()), 
-            loc)
-        }
+  // ensure a valid function call
+  let ident = if let EXPRESSION::Variable { ident } = &**func {
+    ident
+  } else {
+    fatal!("Linking Error: attempt to call non-identifier");
+  };
 
-        for (arg, binding) in args.iter().zip(bindings.into_iter()) {
-            self.resolve_expression(arg, Some(&binding.ty));
-        }
+  let (bindings, ret_ty) = self.symtbl.resolve_fn(ident).unwrap();
 
-        ret_ty
-    }
+  // ensure f() is called with the correct number of arguments
+  if args.len() != bindings.len() {
+    fatal_at!(
+      format!("Linking Error: mismatched argument count [...]", 
+      args.len()), 
+    loc)
+  }
+
+  // iterate over corresponding pairs of parameters 
+  // and argsuments, ensuring they are of the same type
+  for (arg, binding) in args.iter().zip(bindings.into_iter()) {
+    self.resolve_expression(arg, Some(&binding.ty));
+  }
+
+  ret_ty
+}
 \end{lstlisting}
 
 \begin{lstlisting}[language=C]
-    fn resolve_infix(
-        &mut self,
-        lhs: &Span<EXPRESSION>,
-        op: &BINOP,
-        rhs: &Span<EXPRESSION>,
-    ) -> TYPE {
-        let lhs_ty = self.resolve_expression(lhs, None);
-        let rhs_ty = self.resolve_expression(rhs, None);
+fn resolve_infix(
+  &mut self,
+  lhs: &Span<EXPRESSION>,
+  op: &BINOP,
+  rhs: &Span<EXPRESSION>,
+) -> TYPE {
+  let lhs_ty = self.resolve_expression(lhs, None);
+  let rhs_ty = self.resolve_expression(rhs, None);
 
-        match op {
-            BINOP::ADD | BINOP::SUB  => { 
-                self.verify_compatible(&rhs_ty, vec![&TYPE::INT, &TYPE::CHAR, 
-                    &TYPE::PTR(Box::new(TYPE::INT)), &TYPE::PTR(Box::new(TYPE::CHAR)) ], rhs.loc);
+  match op {
+    BINOP::ADD | BINOP::SUB  => { 
+      // verify the LHS and RHS are of compatible types 
+      // e.g. an int can be added to a pointer 
+      self.verify_compatible(
+        &rhs_ty, 
+        vec![
+          &TYPE::INT, &TYPE::CHAR, 
+          &TYPE::PTR(Box::new(TYPE::INT)), 
+          &TYPE::PTR(Box::new(TYPE::CHAR)) 
+        ], 
+        rhs.loc
+      );
 
-                self.verify_compatible(&lhs_ty, vec![&TYPE::INT, &TYPE::CHAR, 
-                    &TYPE::PTR(Box::new(TYPE::INT)), &TYPE::PTR(Box::new(TYPE::CHAR)) ], lhs.loc)
-            } ,
+      //[verify rhs]
+    } ,
 
 
-            BINOP::LT | BINOP::LTE | BINOP::GT | BINOP::GTE | BINOP::EE | BINOP::NE  => { 
-                self.verify_compatible(&lhs_ty, vec![&TYPE::INT, &TYPE::CHAR], lhs.loc);
-                self.verify_compatible(&rhs_ty, vec![&TYPE::INT, &TYPE::CHAR], rhs.loc);
-                TYPE::BOOL
-            } ,
+    BINOP::LT | BINOP::LTE | BINOP::GT  | 
+    BINOP::GTE | BINOP::EE | BINOP::NE  => { 
+      self.verify_compatible(
+        &lhs_ty, 
+        vec![&TYPE::INT, &TYPE::CHAR], 
+        lhs.loc
+      );
 
-            BINOP::MUL | BINOP::DIV | BINOP::AND | BINOP::OR | BINOP::XOR => { 
-                self.verify(&lhs_ty, Some(&TYPE::INT), lhs.loc);
-                self.verify(&rhs_ty, Some(&TYPE::INT), rhs.loc)
-            },
+      // [verify rhs]
 
-            BINOP::LAND | BINOP::LOR => self.verify(&lhs_ty, Some(&TYPE::BOOL), lhs.loc)
-        }
-    }
+      // comparative operations return a bool regardless 
+      // of their input types
+      TYPE::BOOL
+    } ,
+
+    // ensure the lhs and rhs are both bools
+    BINOP::LAND | BINOP::LOR => 
+      self.verify(&lhs_ty, Some(&TYPE::BOOL), lhs.loc)
+  }
+}
 \end{lstlisting}
 
 \begin{lstlisting}[language=C]
-    fn resolve_prefix(&mut self, op: &UNOP, rhs: &Span<EXPRESSION>) -> TYPE {
-        match op {
-            UNOP::PTR => TYPE::PTR(Box::new(self.resolve_expression(rhs, None))),
-            UNOP::DEREF => {
-                let ty = self.resolve_expression(rhs, None);
-                if let TYPE::PTR(ty) = ty {
-                    *ty
-                } else {
-                    fatal_at!(
-                        format!("Linking Error: cannot dereference type '{}'", ty),
-                        rhs.loc
-                    );
-                }
-            }
+fn resolve_prefix(
+  &mut self, 
+  op: &UNOP, 
+  rhs: &Span<EXPRESSION>
+) -> TYPE {
+  match op {
+    // resolve the type of the expression within the ptr 
+    // create a ptr to that type, can be defined recursively
+    UNOP::PTR => TYPE::PTR(
+      Box::new(self.resolve_expression(rhs, None))
+    ),
 
-            UNOP::NEG | UNOP::LNOT => self.resolve_expression(rhs, Some(&TYPE::INT)),
-            UNOP::NOT => self.resolve_expression(rhs, Some(&TYPE::BOOL)),
-        }
-    } 
+    UNOP::DEREF => {
+      // only pointers can be derefed, else throw an error
+      let ty = self.resolve_expression(rhs, None);
+      if let TYPE::PTR(ty) = ty {
+        *ty
+      } else {
+        fatal_at!(
+            format!("Cannot dereference '{}'", ty),
+            rhs.loc
+        );
+      }
+    }
+  }
+} 
 \end{lstlisting}
 
 \subsubsubsection{Scope Table Builder}
+The scope table contains the local scope for each Block expression contained within the program. Each scope is referenced by a unique \texttt{ScopeId}, and contains a \texttt{HashMap} mapping identifiers to variable bindings which can be used to resolve the data type or stack slot of a particular variable. 
+
+\begin{lstlisting}[language=C]
+#[derive(Debug, Clone)]
+pub struct SymbolTable {
+  // symbols refer to constants and functions 
+  symbols: HashMap<Identifier, SYMBOL>,
+
+  // local variables (stack assigned) are stored in scopes
+  scopes: HashMap<ScopeId, Scope>
+}
+
+#[derive(Debug, Clone)]
+pub struct Scope {
+  pub variables: HashMap<Identifier, Variable>,
+  pub parent: Option<ScopeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Variable {
+  pub ty: TYPE,
+  // offset from stack's base pointer in the stack frame
+  pub stack_slot: Option<i16>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub struct ScopeId(pub u32);
+\end{lstlisting}
+
+The \texttt{ScopeTableBuilder} iterates over each node in the program, when it enters a block, it first determines whether the block is a function scope or a block scope (function scopes have no parent scope). If it is a function scope, it registers a function scope in the SymbolTable, unique from a block scope since it correpsonds to a unique stack frame when the code is compiled. It sets the current scope of the \texttt{SymbolTableBuilder} to the Block's local scope, and recursively resolves all statemetns contained within.
+
+\begin{lstlisting}[language=C]
+fn visit_block(&mut self, b: &mut Span<Block>) {
+  // create new Scope with curr Scope ID in Symbol Table
+  self.symtbl.register_scope(&b.scope); 
+
+  // since functions have no parent scope, if this block has 
+  // no parent scope, define a new function scope, otherwise 
+  // block exists within a function (e.g. for or while)
+  if let Some(parent) = &self.scope {
+    self.symtbl.set_parent_scope(b.scope, *parent);
+  } else {
+    self.register_function_scope(b.scope);
+  }
+
+  let prev_scope = self.scope;
+  self.scope = Some(b.scope);
+  self.walk_block(b);
+  self.scope = prev_scope;
+}
+\end{lstlisting}
+
+Should the \texttt{Walker} encounter a declaration statement, it creates an entry in the local Block Scope \texttt{HashMap} mapping the identifier to its respective data type. And recursively resolves the rhs expression.
+
+\begin{lstlisting}[language=C]
+fn visit_statement(
+  &mut self, 
+  s: &mut Span<crate::ast::STATEMENT>
+) {
+  if let STATEMENT::Declaration { binding, expr } 
+    = &mut **s {
+
+    // register variable in local block scope
+    self.symtbl.register_variable(
+      self.scope.as_ref().unwrap(),
+      &*binding
+    );
+
+    self.visit_expression(expr);
+  }
+
+  self.walk_statement(s);
+}
+\end{lstlisting}
+
+Should the \texttt{Walker} encounter an expression, it determines whether the expression is a Call or a Variable. Should the expression be a variable, it uses the SymbolTable to determine whether the variable has been previously declared in the program before it was used. Else it throws an exception. Should it be a call, it determines whether the left hand side resolves to an identifier, and that that identifier corresponds to a predeclared function symbol.
+
+\begin{lstlisting}[language=C]
+fn visit_expression(
+  &mut self, 
+  e: &mut Span<crate::ast::EXPRESSION>
+) {
+  match &mut **e {
+    // if the expression is a call, determine whether
+    // the identifier corresponds to a declared subroutine
+
+    EXPRESSION::Call { func, args } => {
+
+      // ensure the LHS is an identifier 
+      let ident = if let EXPRESSION::Variable { ident } 
+        = &mut ***func {
+        ident
+      } else {
+        fatal_at!("Attempt to call a non-function")
+      };
+
+      // ensure identifier corresponds to a declared symbol
+      let symbol = if let Some(symbol) 
+        = self.symtbl.lookup_symbol(ident) {
+        symbol
+      } else {
+        fatal_at!("Attempt to call undeclared function")
+      };
+
+      // ensure the symbol is a function not a constant
+      match symbol {
+        SYMBOL::Function { .. } => {},
+        _ => fatal_at!("Cannot call constant {ident}")
+      }
+
+      for arg in args.iter_mut() {
+        self.visit_expression(arg);
+      }
+
+      // don't visit sub expressions
+      return; 
+    },
+    
+    // ensure the variable is declared before usage
+    EXPRESSION::Variable { ident } => {
+      self.symtbl.resolve_variable(
+        self.scope.unwrap(), ident).unwrap_or_else(|| 
+        fatal_at!(
+          format!("use of undeclared identifier '{ident}'"),
+      ));
+    },
+
+    _ => {},
+  };
+
+  self.walk_expression(e);
+}
+\end{lstlisting}
 
 \subsubsection{Intermediate Representation}
 \subsubsection{Code Generation}
