@@ -1849,5 +1849,410 @@ fn visit_expression(
 }
 \end{lstlisting}
 
-\subsubsection{Intermediate Representation}
 \subsubsection{Code Generation}
+Code generation is performed in two steps, the first step generates an intermediate representation of the parsed abstract syntax tree - consisting of a list of \texttt{BLOCK}'s each corresponding to machine code instructions. The second step iterates through each \texttt{BLOCK} and generates the machine code for that particular block, inserting labels where required. Each block doesn't neccessarily represent one machine code instruction, for example, \texttt{BLT} will expand into a \texttt{SLT} and \texttt{BNE} instruction. 
+
+\begin{lstlisting}[language=C]
+#[derive(Debug, Clone)]
+pub enum BLOCK {
+  ADD(Register, Register, Register),
+  SUB(Register, Register, Register),
+  AND(Register, Register, Register),
+  OR(Register, Register, Register),
+  XOR(Register, Register, Register),
+
+  ADDI(Register, Register, i16),
+
+  EE(Register, Register, Register),
+  NE(Register, Register, Register),
+  LT(Register, Register, Register),
+  GT(Register, Register, Register),
+  LTE(Register, Register, Register),
+  GTE(Register, Register, Register),
+
+  NOR(Register, Register, Register),
+  NOT(Register, Register),
+
+  LABEL(Label),
+  JAL(Register, Label),
+  JMP(Label),
+  JR(Register),
+  HLT,
+
+  BEQ(Register, Register, Label),
+  BLT(Register, Register, Label),
+
+  MOV(Register, Register),
+  LI(Register, Number),
+  LW(Register, Register, i16), // lw $rt, offset($rs)
+  SW(Register, Register, i16), // sw rt, offset($rs)
+
+  PUSH(Register),
+  POP(Register),
+}
+
+#[derive(Debug, Clone)]
+pub struct Number(pub u16);
+
+#[derive(Debug, Clone)]
+pub struct Label(pub String);
+
+#[derive(Debug, Clone)]
+pub struct Register(pub String); 
+\end{lstlisting}
+
+The IR struct (wrapping the IR generating code) has a current function context reference, symbol table reference, hashmap for used labels, and an output vector of \texttt{BLOCK}'s. Since the generator reuses labels (e.g. \texttt{.endif}) and each label has to be unique, the IR stores the number of times each label has been used. This is then appended onto the label to generate a unique instance. (e.g. \texttt{.endif-2}). 
+
+The function context corresponds to the current stack frame the compiler is working under. This stores a return label, so any \texttt{return} instructions inside the function know where to exit the function. A current stack pointer pointing to the next free stack slot (offset from the base pointer), when anything is added onto the stack, it is stored in the memory location given by \texttt{stack\_pointer} and \texttt{stack\_pointer} is decremented (since the stack grows downwards). The function context also stores a reference to the block scope of the function, containing all local variables and their offsets from the base pointer. 
+
+\begin{lstlisting}[language=C]
+pub struct Ir<'a> {
+  ir: Vec<BLOCK>,
+  fctx: Option<Fctx>,
+  symtbl: &'a mut SymbolTable,
+  labels: HashMap<String, u16>,
+}
+
+#[derive(Debug)]
+struct Fctx {
+  l_ret: Label,
+
+  // offset from $bp (grows downwards, 
+  // thus negate when accessing memory)
+  stack_pointer: i16, 
+  scope: ScopeId,
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_fn(
+  &mut self, 
+  ident: &Span<Identifier>, 
+  bindings: &Vec<Span<Binding>>, 
+  body: &Span<Block>
+) {
+  self.fctx = Some(Fctx{
+    stack_pointer: -1, // since 0 points to $bp
+    l_ret: self.label("ret"),
+    scope: body.scope,
+  });
+
+  // function prologue
+  //   .[ident]
+  //   push $ra 
+  //   push $bp
+  //   mov $bp, $sp
+  self.ir.push(BLOCK::LABEL(Label(ident.ident.clone())));
+  self.ir.push(BLOCK::PUSH(Register::from("$ra")));
+  self.ir.push(BLOCK::PUSH(Register::from("$bp")));
+  self.ir.push(BLOCK::MOV(
+    Register::from("$bp"), 
+    Register::from("$sp")
+  ));
+
+
+  // register each binding in the local stack frame
+  for (i, binding) in bindings.iter().enumerate() {
+    let scope = self.fctx().scope;
+
+    // evaluate argument and push to stack 
+    self.ir.push(BLOCK::LW(
+      Register::from("$r0"), 
+      Register::from("$bp"), 
+      2 + i as i16)
+    );
+
+    self.push(Register::from("$r0"));
+
+    let sp = self.fctx().stack_pointer + 1; 
+
+    // register parameter stack slot 
+    self.symtbl.set_slot(scope, &binding.ident, sp);
+  }
+
+  self.translate_block(body);
+
+  // insert function epiologue
+  //   .return
+  //   mov $sp, $bp
+  //   pop $bp
+  //   pop $ra
+  //   jr $ra
+  let l_ret = self.fctx().l_ret.clone();
+
+  self.ir.push(BLOCK::LABEL(l_ret));
+  self.ir.push(BLOCK::MOV(
+    Register::from("$sp"), 
+    Register::from("$bp")
+  ));
+
+  self.ir.push(BLOCK::POP(Register::from("$bp")));
+  self.ir.push(BLOCK::POP(Register::from("$ra")));
+  self.ir.push(BLOCK::JR(Register::from("$ra")));
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_if(
+  &mut self, 
+  cond: &Span<EXPRESSION>, 
+  conseq: &Span<Block>, 
+  altern: &Option<Box<Span<Block>>>
+) {
+  let l_else= self.label("else");
+  let l_end= self.label("endif");
+
+  // condition == 0 => branch .else
+  self.translate_expression(cond);
+  self.ir.push(BLOCK::BEQ(
+    Register::from("$r0"), 
+    Register::from("$zero"), 
+    l_else.clone()
+  ));
+
+  // [...then]
+  self.translate_block(conseq);
+
+  // jmp .end
+  self.ir.push(BLOCK::JMP(l_end.clone()));
+
+  // .else
+  // [...else]
+  self.ir.push(BLOCK::LABEL(l_else.clone()));
+  if let Some(altern) = altern {
+    self.translate_block(altern);
+  }
+
+  // .end
+  self.ir.push(BLOCK::LABEL(l_end));
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_declaration(
+  &mut self, 
+  binding: &Span<Binding>, 
+  expr: &Span<EXPRESSION>
+) {
+  // translate expression, store in $r0, 
+  // push $r0 to the stack and record offset from $bp
+  self.translate_expression(expr);
+
+  // decrement stack pointer and store variable on stack
+  let sp = self.fctx().stack_pointer;
+  self.ir.push(BLOCK::ADDI(
+    Register::from("$sp"), 
+    Register::from("$sp"), 
+    -1
+  ));
+
+  self.ir.push(BLOCK::SW(
+    Register::from("$r0"), 
+    Register::from("$bp"), 
+    sp)
+  );
+
+  self.fctx().stack_pointer -= 1;
+
+  let scope = self.fctx().scope;
+
+  // update variables stack slot entry in symbol table
+  self.symtbl.set_slot(scope, &binding.ident, sp);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+// LOAD $r0, stack_slot($bp) 
+fn translate_variable(&mut self, ident: &Span<Identifier>) {
+  let scope = self.fctx().scope;
+
+  if let Some(stack_slot) = self.symtbl
+    .resolve_variable(scope, ident)
+    .expect("reference to undeclared variable")
+    .stack_slot {
+
+    // if a variable has been assigned a stack slot 
+    // load from memory into $r0
+    self.ir.push(BLOCK::LW(
+      Register::from("$r0"), 
+      Register::from("$bp"), 
+      stack_slot)
+    );
+
+  } else if let Some(SYMBOL::Const { expr , ..}) = self.symtbl.lookup_symbol(ident){
+    self.translate_expression(&expr);
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_prefix(
+  &mut self, 
+  op: &UNOP, 
+  rhs: &Span<EXPRESSION>
+) {
+  match op {
+    // evaluate the rhs (stores address of variable in $r0)
+    // load word from the address in $r0
+    UNOP::DEREF => {
+      self.translate_expression(rhs);
+      self.ir.push(BLOCK::LW(
+        Register::from("$r0"), 
+        Register::from("$r0"), 
+        0
+      ));
+    },
+
+    // PTR (load memory address of vairable into $r0)
+    // memory address of variable is its offset from the 
+    // base pointer + the address of the base pointer
+    UNOP::PTR => {
+      if let EXPRESSION::Variable { ident } = &**rhs {
+          let scope = self.fctx().scope;
+          let stack_slot = self.symtbl
+            .resolve_variable(scope, ident)
+            .stack_slot
+
+          // stores mem addr of variable in $r0
+          self.ir.push(BLOCK::ADDI(
+            Register::from("$r0"), 
+            Register::from("$bp"), 
+            stack_slot
+          ));
+
+        } else if let EXPRESSION::Literal { lit } = &**rhs{
+          self.translate_literal(lit);
+        }
+    },
+
+    UNOP::NEG => {
+      self.translate_expression(rhs);
+
+      // to negate a value, subtract it from 0
+      self.ir.push(BLOCK::SUB(
+        Register::from("$r0"), 
+        Register::from("$zero"),
+        Register::from("$r0")
+      ));
+    },
+
+    // [...]
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_infix(
+  &mut self, 
+  lhs: &Span<EXPRESSION>, 
+  op: &BINOP, 
+  rhs: &Span<EXPRESSION>
+) {
+  // evaluate lhs and store on the stack
+  self.translate_expression(lhs);
+  self.push(Register::from("$r0"));
+
+  // evaluate rhs into $r0 and pop lhs back into $r1
+  self.translate_expression(rhs);
+  self.pop(Register::from("$r1"));
+
+  // perform the operation on registers $r0 and $r1
+  match op {
+    BINOP::ADD => self.ir.push(BLOCK::ADD(
+      Register::from("$r0"), 
+      Register::from("$r1"), 
+      Register::from("$r0")
+    )),
+
+    // [...] 
+
+    BINOP::GTE => self.ir.push(BLOCK::GTE(
+      Register::from("$r0"), 
+      Register::from("$r1"), 
+      Register::from("$r0")
+    )),
+  };
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_call(
+  &mut self, 
+  func: &Span<EXPRESSION>, 
+  args: &Vec<Span<EXPRESSION>>
+) {
+  // fetch the function identifier
+  let ident = EXPRESSION::Variable { ident } = &**func 
+
+  // evaluate and push each argument onto the stack 
+  for arg in args.into_iter().rev() {
+    self.translate_expression(arg);
+    self.ir.push(BLOCK::PUSH(Register::from("$r0")));
+  }
+
+  // jump to the label given by the function identifier
+  // store the return address in $ra
+  self.ir.push(BLOCK::JAL(
+    Register::from("$ra"), 
+    Label(ident.ident.clone())
+  ));
+
+  // after function execution decrement $sp to pop 
+  // arguments off of the stack and restore state
+  self.ir.push(BLOCK::ADDI(
+    Register::from("$sp"), 
+    Register::from("$sp"), 
+    args.len() as i16
+  ));
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C]
+fn translate_assign(
+  &mut self, 
+  lhs: &Span<EXPRESSION>, 
+  rhs: &Span<EXPRESSION>
+) {
+  // resolve address of variable:
+  //   - STACK: lookup offset in the stack frame
+  //   - DEREF: translate rhs, rhs is a pointer 
+  //            thus holds the address to write to
+
+  self.translate_expression(rhs);
+
+  match &**lhs {
+    EXPRESSION::Variable { ident }  => {
+      let scope = self.fctx().scope;
+
+      let stack_slot = self.symtbl
+        .resolve_variable(scope, ident)
+        .stack_slot;
+
+      // store $r0 in address where addr = $bp + stack slot
+      self.ir.push(BLOCK::SW(
+        Register::from("$r0"), 
+        Register::from("$bp"), 
+        stack_slot
+      ));
+    },
+
+    EXPRESSION::Prefix { op: UNOP::DEREF, rhs } => {
+      // push variable memory address onto the stack 
+      self.push(Register::from("$r0"));
+
+      // evaluate expression and store in $r1
+      self.translate_expression(rhs);
+
+      // retrieve memory address from the stack
+      self.pop(Register::from("$r1"));
+
+      // store $r1 in the memory address in $r0
+      self.ir.push(BLOCK::SW(
+        Register::from("$r1"),
+        Register::from("$r0"), 
+        0
+      ));
+    }
+  }
+}
+\end{lstlisting}
