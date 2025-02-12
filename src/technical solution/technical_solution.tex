@@ -1924,6 +1924,8 @@ struct Fctx {
 }
 \end{lstlisting}
 
+This method takes in a parsed function node, with an identifier, set of parameter bindings, and body; and outputs the sequence of intermediate instructions used to represent this. It creates a new function context and prepends the function prologue, setting up the stack frame for that particular function. It then assigns each parameter a slot on the stack from which it can be referenced. It recursively calls \texttt{translate\_block()} to compile the function body, before inserting the function epiologue.
+
 \begin{lstlisting}[language=C]
 fn translate_fn(
   &mut self, 
@@ -1992,6 +1994,8 @@ fn translate_fn(
 }
 \end{lstlisting}
 
+The following function translates an 'if' node. It evaluates the conditional expression first, jumping to the 'else' clause should the result be 0. The subsequent 'then' and 'else' statements can also be if nodes, meaning that if-elseif statements can be compiled recursively. 
+
 \begin{lstlisting}[language=C]
 fn translate_if(
   &mut self, 
@@ -1999,8 +2003,8 @@ fn translate_if(
   conseq: &Span<Block>, 
   altern: &Option<Box<Span<Block>>>
 ) {
-  let l_else= self.label("else");
-  let l_end= self.label("endif");
+  let l_else = self.label("else");
+  let l_end = self.label("endif");
 
   // condition == 0 => branch .else
   self.translate_expression(cond);
@@ -2027,6 +2031,8 @@ fn translate_if(
   self.ir.push(BLOCK::LABEL(l_end));
 }
 \end{lstlisting}
+
+To translate a declaration statement, I first evaluate the result of the expression which is stored in register \texttt{\$r0}. I push this value onto the stack and make a note of its memory address, storing its offset from the base pointer in the function context symbol table, and decrementing the stack pointer accordingly to point to the next free slot.
 
 \begin{lstlisting}[language=C]
 fn translate_declaration(
@@ -2061,6 +2067,8 @@ fn translate_declaration(
 }
 \end{lstlisting}
 
+To evaluate a variable, it will either be a constant or a local variable. The symbol table stores a HashMap mapping each constant to a value, so this can simply be subtituted in. For a variable, a record will exist in the function's context mapping that identifier to a stack slot. To resolve the variable from memory, I load the word at the memory location given by (\texttt{base pointer + stack slot}) into \texttt{\$r0}.
+
 \begin{lstlisting}[language=C]
 // LOAD $r0, stack_slot($bp) 
 fn translate_variable(&mut self, ident: &Span<Identifier>) {
@@ -2084,6 +2092,8 @@ fn translate_variable(&mut self, ident: &Span<Identifier>) {
   }
 }
 \end{lstlisting}
+
+The following function evaluates any prefix expressions, namely dereferences and a pointers. To dereference a variable, the right hand side of the expression is evlauted, and whatever value in memory exists at that address is written into the register \texttt{\$r0}. A pointer however, resolves to the memory address of the variable you are referencing. The stack slot is looked up in the symbol table, and the memory address is calculated by adding that offset to the base pointer. \texttt{\$r0} is set to the result of this calculation. 
 
 \begin{lstlisting}[language=C]
 fn translate_prefix(
@@ -2141,6 +2151,8 @@ fn translate_prefix(
 }
 \end{lstlisting}
 
+The following function translates any infix nodes. It recursively evaluates the lhs of the expression, pushing the result onto the stack. It then evaluates the rhs into \texttt{\$r0} and pops the lhs back into \texttt{\$r1}. The operation is then performed on those two registers. 
+
 \begin{lstlisting}[language=C]
 fn translate_infix(
   &mut self, 
@@ -2175,6 +2187,8 @@ fn translate_infix(
 }
 \end{lstlisting}
 
+The call statement is responsible for preparing the arguments required to call a function, and in turn removing them from the stack once execution has completed. It evaluates and pushes each argument onto the stack in order (thus storing the arguments in the stack slots the function has pre-assigned for parameters). It then jumps to the address of the first instruction, storing the return address in \texttt{\$ra}. Finally, once the function has been executed, it decrements the stack pointer by the number of arguments, returning the stack to its initial state before the function was called. 
+
 \begin{lstlisting}[language=C]
 fn translate_call(
   &mut self, 
@@ -2207,6 +2221,8 @@ fn translate_call(
 }
 \end{lstlisting}
 
+There are two types of assignments this language supports: values can be assigned to local variables or to memory locations directly. To assign a value to a variable, the memory address is calculated from the base pointer and stack slot and the result of the expression is stored using a \texttt{sw} instruction. When assigning directly to a memory address, the lhs of the assignment is evaluated and the result of the expression is stored directly in that memory address. 
+
 \begin{lstlisting}[language=C]
 fn translate_assign(
   &mut self, 
@@ -2236,17 +2252,18 @@ fn translate_assign(
       ));
     },
 
+    // assign to dereferenced memory address
     EXPRESSION::Prefix { op: UNOP::DEREF, rhs } => {
       // push variable memory address onto the stack 
       self.push(Register::from("$r0"));
 
-      // evaluate expression and store in $r1
+      // evaluate expression and store in $r0
       self.translate_expression(rhs);
 
       // retrieve memory address from the stack
       self.pop(Register::from("$r1"));
 
-      // store $r1 in the memory address in $r0
+      // store $r0 in the memory address in $r1
       self.ir.push(BLOCK::SW(
         Register::from("$r1"),
         Register::from("$r0"), 
