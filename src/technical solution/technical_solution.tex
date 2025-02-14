@@ -1432,7 +1432,7 @@ pub struct Typeck<'a> {
   // a reference to the symbol table generated after parsing
   symtbl: &'a mut SymbolTable,
 
-  // contains the current scope 
+  // contains the current scope from which to resolve variables
   scope: Option<ScopeId>,
 }
 
@@ -1926,6 +1926,7 @@ struct Fctx {
 
 This method takes in a parsed function node, with an identifier, set of parameter bindings, and body; and outputs the sequence of intermediate instructions used to represent this. It creates a new function context and prepends the function prologue, setting up the stack frame for that particular function. It then assigns each parameter a slot on the stack from which it can be referenced. It recursively calls \texttt{translate\_block()} to compile the function body, before inserting the function epiologue.
 
+\label{translate_fn}
 \begin{lstlisting}[language=C]
 fn translate_fn(
   &mut self, 
@@ -2221,7 +2222,7 @@ fn translate_call(
 }
 \end{lstlisting}
 
-There are two types of assignments this language supports: values can be assigned to local variables or to memory locations directly. To assign a value to a variable, the memory address is calculated from the base pointer and stack slot and the result of the expression is stored using a \texttt{sw} instruction. When assigning directly to a memory address, the lhs of the assignment is evaluated and the result of the expression is stored directly in that memory address. 
+There are two types of assignments this language supports: values can be assigned to local variables or to memory locations directly. To assign a value o a variable, the memory address is calculated from the base pointer and stack slot and the result of the expression is stored using a \texttt{sw} instruction. When assigning directly to a memory address, the lhs of the assignment is evaluated and the result of the expression is stored directly in that memory address. 
 
 \begin{lstlisting}[language=C]
 fn translate_assign(
