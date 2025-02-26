@@ -1,7 +1,178 @@
-\subsection{Test Table}
+\subsection{Testing Table}
 
-\begin{longtable}{ | p{2cm} | p{2cm} | p{3cm} | p{3cm} | p{2cm} | p{2cm} |  } 
+\begin{longtable}{|p{1cm}|p{5cm}|p{5cm}|p{2cm}|} 
     \hline
-        Objective & Test & Purpose & Expected Outcome & Timestamp & Correction \\ 
+        No & Test & Purpose & Timestamp \\ 
+    \hline
+        1.1
+        & 
+        Assemble a program that counts to 15. 
+        &
+        To ensure the assembler correctly assembles programs into machine code.
+        & 
+        10:53-14:30
+        \\
+    \hline
+        1.2
+        & 
+        Assemble a program containing branch and jump instructions between labels.
+        &
+        To ensure jump instructions calculate absolute addresses, and branch instructions calculate relative offsets. Validates that the assembler can correctly use the position of labels within the source code to determine these values.
+        & 
+        14:30-16:26
+        \\
+    \hline
+        1.3
+        & 
+        Assemble a program containing macro instructions.
+        &
+        To ensure that the assembler can correctly expand and assemble macro instructions by validating the number of instructions produced and their opcodes.
+        & 
+        16:26-18:33
+        \\
+    \hline
+        1.4
+        & 
+        Attempt to assemble a program containing an invalid character.
+        &
+        To ensure the assembler halts compilation and throws a syntax error, pointing out the position of the invalid character in source code.
+        & 
+        18:47-19:12
+        \\
+    \hline
+        1.5
+        & 
+        Attempt to assemble a program containing a undefined mnuemonic.
+        &
+        To ensure the assembler halts compilation and throws a syntax error, specifying that the mneumonic encountered is not defined within the instruction set.
+        & 
+        19:18-19:30
+        \\
+    \hline
+        1.6
+        & 
+        Attempt to assemble a program containing an overflowinging integer.
+        &
+        To ensure the assembler throws an error specifying that the number it is attempting to assemble is too large to fit in 16 bits. 
+        & 
+        19:30-19:40
+        \\
+    \hline
+        1.7
+        & 
+        Attempt to assemble a program containing an unexpected register or invalid label.
+        &
+        To ensure the assembler throws an error specifying that the label hasn't been defined within the program, or that the register doesn't exist. 
+        & 
+        19:40-20:15
+        \\
+    \hline
+        2.1
+        & 
+        Trace the execution of a program to count to 15.
+        &
+        Ensure the computer exhibits the correct state and control flow when executing a binary executable. 
+        & 
+        21:10-22:20
+        \\
+    \hline
+        2.2
+        & 
+        Trace the execution of a program containing jump and branch instructions.
+        &
+        Validates whether the virtual machine can correctly jump between instructions and follow the control flow specified within the program.
+        & 
+        22:20-24:14
+        \\
+    \hline
+        2.3
+        & 
+        Trace the execution of a program to calculate the factorial of a number.
+        &
+        An integration test for the assembler and virtual machine together in order to assemble and execute a more complex program involving the stack and subroutines. 
+        & 
+        24:15-26:47
+        \\
+    \hline
+        2.4
+        & 
+        Test the graphical display by executing programs that involve writing piexls to the screen.
+        &
+        Ensures the state of pixels on the screen directly correspond to the state of VRAM. Validates that writing to the screen via offsets, and within a loop function as expected.
+        & 
+        26:47-30:35
+        \\
+    \hline
+        3.1
+        & 
+        Write and compile a program in the high level langauge to calculate the factorial of a number.
+        & 
+        Demonstrate that the assembly code produced, after being copiled and executed - correctly exhibits the functionality of the high level program.
+        & 
+        31:50-34:17
+        \\
+    \hline
+        3.2
+        & 
+        Attempt to compile a program containing an unexpected keyword.
+        &
+        Validate that the compiler halts compilation and throws a syntax error pointing out the location of the error, and suggesting alternative keywords to fix the issue. 
+        & 
+        32:15-32:35
+        \\
+    \hline
+        3.3
+        & 
+        Attempt to compile a program without a main subroutine
+        &
+        Validate that the linker throws an error when attempting to compile a program without an entry point. 
+        & 
+        32:30-32:38
+        \\
+    \hline
+        3.4
+        & 
+        Attempt to compile a program attempting to assign a value of the incorrect type to a variable.
+        &
+        Ensure that the compiler throws a type error and halts compilation. 
+        & 
+        32:50-32:58
+        \\
+    \hline
+        3.5
+        & 
+        Compile and execute a program that uses VRAM and the graphical display to demonstrate passing by value and reference within my language. 
+        &
+        Demonstrate how dereferencing pointers to variables can be used within a subroutine to modify 'external' variables, and how to write to memory by dereferencing a memory location including using pointer aithmetic for offsets. 
+        & 
+        34:22-36:36
+        \\
+    \hline
+        3.6
+        & 
+        Attempt to compile a program containing a reference to an undeclared subroutine.
+        &
+        Ensure that the compiler halts compilation and points to the location of the undeclared subroutine in the source code.
+        & 
+        36:36-36:47
+        \\
+    \hline
+        3.7
+        & 
+        Compile and exeute a program that demonstrates pointer arithmetic. 
+        &   
+        Validates pointer arithmetic, dereferencing and memory addresses all function correclty within the langauge. Including that dereferencing a variable declared as a pointer to another variable, who's since had its contents changed - should, when dereferenced - also exhibit that new value. 
+        & 
+        36:48-38:48
+        \\
+    \hline
+        3.8
+        & 
+        Compile and exeute pong. 
+        &   
+        An integration test that demonstrates how all three components of the system can function together to compile a complex program that involves all elements of the langauge: subroutines, stack frames, constants, conditionals and loops, pointers and references, etc. And furthermore how the CPU can use a delay timer to create a game playable in real time that interfaces with a keyboard. Ensuring the system is sufficiently optimised to execute at 60 frames per second. 
+        & 
+        38:38-41:50
+        \\
     \hline
 \end{longtable}

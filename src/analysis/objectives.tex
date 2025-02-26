@@ -15,9 +15,9 @@
   \hline
         1.2 
         & 
-        A Harvard computer architecture where data and instructions are stored in seperate memories. 
+        A Von Neuman computer architecture where data and instructions are stored in the same memory. 
         & 
-        Data and instructions can be fetched during the same processor cycle, so execution is more time efficient  and emulation easier (University of Washington MIPS Computer 1.) 
+        The shared memory between data and instructions minimises memory wastage since they can both share the same memory locations. (University of Washington MIPS Computer 1.) 
         & 
         \\
   \hline
@@ -83,16 +83,11 @@
         All statements should be contained within methods, with the single entry point being a compulsory \texttt{main()} method. \\
     \hline
         2.4 & 
-        My langauge should offer structures to group related variables in memory.  &
-        Structures offer a way to transparently organise data in a structured manner in memory - without the complexity of attaching methods, constructors, public and private variables etc... Structures can be passed between functions by reference as a parameter to contain program state and produce cleaner code. (Monkey) & 
-        The \texttt{struct} keyword should be used to define a struct, followed by a list of all attributes and their data types. Structs should be instantiated using curly braces and a list of properties. \\
-    \hline
-        2.5 & 
         My language should support references and pointers to variables in memory. & 
         Pointers allow programmers to implement arrays and strings by accessing variables through their memory location rather than an identifier. They also let you pass structs (otherwise a large data structure inefficient to pass as a copy) to a function as well as references to the first instruction of a function (allowing for first order functions) (Monkey.3)& 
         Programmers should be able to create a pointer to a variable: (\texttt{\&a}), and dereference it (\texttt{*a}). \\
     \hline
-        2.6 & 
+        2.5 & 
         The compiler should produce relevant error messages, pointing out the position in source code if relevant. &
         Relevant error messages make debugging much easier and improve the programmer's experience with a language. (Client Interview 2.4) &
         Error messages should include an easy to understand description of the error, its position in source code - and if possible, relevant steps to correcting it.

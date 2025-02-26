@@ -2274,3 +2274,82 @@ fn translate_assign(
   }
 }
 \end{lstlisting}
+
+\subsection{Unit Testing}
+Throughout the duration of the project, I have used unit testing to ensure the system works as intended. Below, I have included a sample of the unit tests used for the assembler's lexer, and the program's output.
+
+\begin{lstlisting}
+#[cfg(test)]
+mod test {
+  use super::*;
+  #[test]
+  fn test_lex_identifiers() {
+    let mut lexer = Lexer::new("$a0 .label $a1\n.a$zero.1");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(
+      tokens,
+      vec![
+        Span::new(Token::Register(1), Loc::new(0, 2)),
+        Span::new(Token::Label(".label".to_string()), Loc::new(4, 9)),
+        Span::new(Token::Register(2), Loc::new(11, 13)),
+        Span::new(Token::NEWLINE, Loc::new(14, 14)),
+        Span::new(Token::Label(".a".to_string()), Loc::new(15, 16)),
+        Span::new(Token::Register(0), Loc::new(17, 21)),
+        Span::new(Token::Label(".1".to_string()), Loc::new(22, 23)),
+        Span::new(Token::EOF, Loc::new(24, 24)),
+      ]
+    )
+  }
+
+  #[test]
+  fn test_lex_hexidecimal_numeral() {
+    let mut lexer = Lexer::new("0xffff 0x00da\n0xf");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(
+      tokens,
+      vec![
+        Span::new(Token::Number(65535), Loc::new(0, 5)),
+        Span::new(Token::Number(218), Loc::new(7, 12)),
+        Span::new(Token::NEWLINE, Loc::new(13, 13)),
+        Span::new(Token::Number(15), Loc::new(14, 16)),
+        Span::new(Token::EOF, Loc::new(17, 17)),
+      ]
+    )
+  }
+
+  #[test]
+  fn test_error_unexpected_char() {
+    let mut lexer = Lexer::new("mov %r4, $r0");
+    assert_eq!(lexer.tokenize().is_err(), true);
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+> assembler git:(assembler) cargo test
+Compiling assembler v0.1.0 (/Users/ldesilva/Documents/School/Computer Science/NEA/NEA-Code/assembler)
+  Finished test [unoptimized + debuginfo] target(s) in 1.07s
+  Running unittests src/main.rs (target/debug/deps/assembler-418adfb0c6d1f1d5)
+
+running 18 tests
+test exception::tests::test_error_on_first_line ... ok
+test exception::tests::test_error_on_subsequent_lines ... ok
+test lexer::test::test_error_overflow_binary_numeral ... ok
+test lexer::test::test_error_overflow_denary_numeral ... ok
+test lexer::test::test_error_overflow_hexadecimal_numeral ... ok
+test lexer::test::test_error_unexpected_char ... ok
+test lexer::test::test_error_unexpected_binary_numeral ... ok
+test lexer::test::test_error_unexpected_hexidecimal_numeral ... ok
+test lexer::test::test_lex_decimal_numeral ... ok
+test lexer::test::test_lex_comments ... ok
+test lexer::test::test_lex_hexidecimal_numeral ... ok
+test lexer::test::test_error_unexpected_mneumonic ... ok
+test parser::test::test_parse_rir ... ok
+test lexer::test::test_lex_keywords ... ok
+test parser::test::test_parse_rrr ... ok
+test lexer::test::test_error_unexpected_denary_numeral ... ok
+test parser::test::test_parse_rri ... ok
+test lexer::test::test_lex_identifiers ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+\end{lstlisting}
