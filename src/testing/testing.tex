@@ -6,3 +6,87 @@ https://www.youtube.com/watch?v=KQ6ibE77F8w
 \input{./src/testing/testing-table.tex} 
 
 \subsection{Testing Key Algorithms}
+
+\subsubsection{Parsing}
+The first part of the system I want to test in more detail is the parser. I will run a series of tests that ensure each type of program statement is successfully parsed into the desired nodes, and the system throws the required errors when it encounters invalid syntax.
+
+\begin{longtable}{|p{12cm}|p{4cm}|} 
+    \hline
+        Program & Result \\ 
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{1. Unit Test.png}}
+        & 
+        The correct tokens and AST have been produced, matching the initial expression.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{2. Unit Test.png}}
+        & 
+        The correct data types and expressions have been parsed.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{3. Unit Test.png}}
+        & 
+        A Syntax Error has been thrown successfully pointing to the location of the unexpected character in the source code
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{4. Unit Test.png}}
+        & 
+        A Syntax Error was successfully thrown and the program refused to compile.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{5. Unit Test.png}}
+        & 
+        The else-if clause was parsed as a seperate IF node inside the 'alternative' stmts attribute of the primary if node. Furthermore, each block was successfully assigned its own unique scope identifier and the prefix '-1' was parsed correctly.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{6. Unit Test.png}}
+        & 
+        When parsing the if statement, the parser expects a '\{' token, however instead, it encounters a 'return' keyword - it successfully halts compilation and throws an error as expected. 
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{8. Unit Test.png}}
+        & 
+        The initialise, condition and increment fields are successfully parsed in the for loop, and the '+=' assign op is successfully identified as a 'plus' operation. 
+        \\
+    \hline
+\end{longtable}
+
+\subsubsection{Semantic Analysis}
+
+The second part of the compiler that warrants further testing is the sentiment analysis. Once a valid program is successfully parsed, the produced abstract syntax tree is checked for further errors. For instance, referencing a variable which has not yet been declared, and validating the data types of expressions and assignments.  
+
+\begin{longtable}{|p{12cm}|p{4cm}|} 
+    \hline
+        Program & Result \\ 
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{7. Unit Test.png}}
+        & 
+        The program successfully throws an error when it notices a type error, attempting to multiply an integer and character. 
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{9. Unit Test.png}}
+        & 
+        The program successfully throws an error when attempting to call a function with the incorrect number of arguments.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{10. Unit Test.png}}
+        & 
+        The program notes that the function 'increment' is attempting to return an incorrect type. The compiler successfully notices that the 'return' expression occupies multiple lines and modifies the format of the error message accordingly.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{11. Unit Test.png}}
+        & 
+        The program throws an exception noting that the condition of the if-node will not evaluate to a boolean when executed. 
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{12. Unit Test.png}}
+        & 
+        The program throws an error and halts compilation when attempting to reference a variable that has not yet been declared.
+        \\
+    \hline
+        \raisebox{-\totalheight}{\includegraphics[width=12cm]{13. Unit Test.png}}
+        & 
+        This program demonstrates the process of constant folding in the compiler. The compiler successfully noticed that the expressions '128*128', '10 + 3*2', and '10+2*5' could be evaluated to integers, and replaced the entire expression with a single node containing its result. 
+        \\
+    \hline
+\end{longtable}
