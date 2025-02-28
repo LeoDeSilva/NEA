@@ -1,0 +1,106 @@
+\subsection{Objectives}
+
+\begin{longtable}{|p{1cm}|p{5cm}|p{6cm}|p{2cm}|} 
+    \hline
+        No & Requirement & Completed System & Timestamp \\
+    \hline
+        1.1
+        & 
+        A RISC (Reduced Instruction Set Computer) design philosophy. 
+        &
+        I reduced the instruction set down to 13 distinct instructions. The inclusion of the \texttt{Ri} type instructions meant that the \texttt{addi} instruction should be reused to load immediate values into registers, and move values between registers. Design decisions like this show that a RISC architecture is being used. 
+        & 
+        \\
+  \hline
+        1.2 
+        & 
+        A Von Neuman computer architecture where both data and instructions share the same memory. 
+        & 
+        The emulator utilises a single \texttt{memory} array to store both instructions and data, ensuring instructions are fetched sequentially from the same memory space data is stored in - consistent with a Von Neuman architecture.
+        & 
+        \\
+  \hline
+        1.3 
+        &  
+        My Instruction Set should utilize 3 address operands standards.
+        & 
+        My instruction format follows two distinct patterns: three registers, or two registers and an immediate value. Instructions can use any combination of these operands for their execution, for instance the \texttt{jr} instruction only uses a single register from the three provided by the format, whereas \texttt{bne} uses all 3.  
+        & 
+        \\
+  \hline
+        1.4 
+        & 
+        Branch and call instructions should calculate offsets from labels in the source code. 
+        & 
+        The assembler replaces labels in the source code with calculated offsets. Since programs are always loaded from the first memory location in the computer, the assembler can calculate absolute and relative locations of each instruction in the program for branch and jump instructions.
+        & 
+        \\
+  \hline
+        1.5 
+        & 
+        Macro instructions to perform common tasks that are not otherwise specified in the ISA. 
+        &
+        The assembler translates macro instructions like \texttt{push}, \texttt{pop}, and \texttt{xor} into their corresponding machine code sequences. This reduces repetition when programming and improves code readability. 
+        & 
+        \\
+    \hline
+        1.6 
+        & 
+        A set of registers broad enough to minimse memory access. 
+        &
+        The computer includes a set of 32 registers: including temporary registers \texttt{\$t0-9}, general purpose registers \texttt{\$r0-12}, arguments \texttt{\$a0-3}, a base pointer, stack pointer and return address. This setup reduces the need for frequent memory access, improving execution speed. 
+        & 
+        \\
+    \hline
+        1.7 & 
+        A CPU word length of 16-bits. &
+        All registers, ALU operations, memory locations and busses operate on 16-bit values.
+        &
+        \\
+    \hline
+        2.1 & 
+        C standard syntax with semi colons and braces rather than indentation. &
+        & \\
+    \hline
+        2.2 & 
+        The programming language should be statically typed. &
+        & \\
+    \hline
+        2.3 & 
+        The language should support a procedural programming paradigm. &
+        & \\
+    \hline
+        2.4 & 
+        My language should support references and pointers to variables in memory. & 
+        &\\
+    \hline
+        2.5 & 
+        The compiler should produce relevant error messages, pointing out the position in source code if relevant. &
+        &
+        \\
+    \hline
+        2.6 & 
+        The language should support definite and indefinite iteration through for and while loops. &
+        &
+        \\
+    \hline
+        2.7 & 
+        Data should be stored in scoped variables and global constants. & 
+        &
+        \\
+    \hline
+        2.8 & 
+        The compiler should support defining and calling functions. &
+        &
+        \\
+    \hline
+        3.1 & 
+        The Virtual Machine should include a graphical display showing the contents of VRAM. &
+        &
+        \\
+    \hline
+        3.2 & 
+        The Virtual Machine should include a togglable debugger. &
+        & \\
+    \hline
+\end{longtable}

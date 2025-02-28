@@ -15,7 +15,7 @@
   \hline
         1.2 
         & 
-        A Von Neuman computer architecture where data and instructions are stored in the same memory. 
+        A Von Neuman computer architecture where both data and instructions share the same memory. 
         & 
         The shared memory between data and instructions minimises memory wastage since they can both share the same memory locations. (University of Washington MIPS Computer 1.) 
         & 
@@ -75,7 +75,7 @@
         2.2 & 
         The programming language should be statically typed. &
         A type system ensures type-errors are thrown at compile time rather than during execution, leading to more robust programs that are easier to debug. Furthermore compilation becomes easier with statically typed variables as their size in memory is predetermined. (Monkey.2, Jack.4, Client Interview 2.5) & 
-        My syntax should support signed and unsigned integers, strings, and integers of different sizes. The \texttt{let} keyword should be used when declaring a variable and require the type to be specified alongside its identifier. \\
+        My syntax should support signed and unsigned integers, characters, booleans. The \texttt{let} keyword should be used when declaring a variable and require the type to be specified alongside its identifier. \\
     \hline
         2.3 & 
         The language should support a procedural programming paradigm. &
@@ -93,6 +93,24 @@
         Error messages should include an easy to understand description of the error, its position in source code - and if possible, relevant steps to correcting it.
         \\
     \hline
+        2.6 & 
+        The language should support definite and indefinite iteration through for and while loops. &
+        Iteration is a key element of control flow for a procedural language. &
+        'for' and 'while' keywords should be used for the two different types of loops. 
+        \\
+    \hline
+        2.7 & 
+        Data should be stored in scoped variables and global constants. & 
+        Storing data in scoped variables ensures memory is efficiently managed, preventing unintended side effects from modifying global variables. Constants help improve code readability and make debugging easier. & 
+        The 'let' keyword should be used to declare variables inside a subroutine, and 'const' for declaring gloabl constants. 
+        \\
+    \hline
+        2.8 & 
+        The compiler should support defining and calling functions. &
+        Functions allow code to be reused, and encapsulate logic into distinct units. Furthermore, functions help with code organisation. &
+        Programmers should be able to declare functions with typed parameters and a return type. Functions should support recursion.
+        \\
+    \hline
         3.0 Virtual Machine & 
         &
         & 
@@ -107,5 +125,5 @@
         The Virtual Machine should include a togglable debugger. &
         A debugger would help programmers locate errors and test their programs, as well as ensuring the internal state of the computer is being modified as intended. (Client Interview 3.1, Austin Morlan's CHIP-8 Emulator.2) & 
         The debugger should show the contents of the general and special purpose registers, the currently executing instruction, and be able to probe the contents of memory. \\
-        \hline
+    \hline
 \end{longtable}
