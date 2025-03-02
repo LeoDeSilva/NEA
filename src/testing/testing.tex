@@ -8,7 +8,7 @@ https://www.youtube.com/watch?v=KQ6ibE77F8w
 \subsection{Testing Key Algorithms}
 
 \subsubsection{Parsing}
-The first part of the system I want to test in more detail is the parser. I will run a series of tests that ensure each type of program statement is successfully parsed into the desired nodes, and the system throws the required errors when it encounters invalid syntax.
+I will run a series of tests against the key algorithms of the project in order to ensure the code works as intended. Starting with the Parser. This will ensure that each type of program statement is parsed into the correct nodes, and the system throws the expected errors when it encounters invalid syntax. Each test case includes the code being parsed, followed by the output of the lexer and parser respectively, along with any error messages.
 
 \begin{longtable}{|p{12cm}|p{4cm}|} 
     \hline
@@ -16,49 +16,49 @@ The first part of the system I want to test in more detail is the parser. I will
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{1. Unit Test.png}}
         & 
-        The correct tokens and AST have been produced, matching the initial expression.
+        The expected tokens are output by the lexer, and the parser produces an AST which correctly represents the order of operations in the given expression, indicating the pratt parser is working correctly. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{2. Unit Test.png}}
         & 
-        The correct data types and expressions have been parsed.
+        The correct data-type has been parsed for the declaration binding, and the order of operations of the 'rhs' expression of the assignment has been parsed correctly showing that this test case has passed. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{3. Unit Test.png}}
         & 
-        A Syntax Error has been thrown successfully pointing to the location of the unexpected character in the source code
+        The lexer successfully threw a syntax error when it encountered an unexpected character in the source code, pointing to the specific location in the error message and passing this test.
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{4. Unit Test.png}}
         & 
-        A Syntax Error was successfully thrown and the program refused to compile.
+        The pratt parser determined the expression was invalid when it encountered an unexpected token (another operator). It successfully halted compilation and threw the correct error message, passing the test. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{5. Unit Test.png}}
         & 
-        The else-if clause was parsed as a seperate IF node inside the 'alternative' stmts attribute of the primary if node. Furthermore, each block was successfully assigned its own unique scope identifier and the prefix '-1' was parsed correctly.
+        The lexer produced the expected tokens from the source code, and the parser correctly represented the if statements in the abstract syntax tree, passing the test. The 'else if' clause was interpreted as the 'altern' attribute in the top-level if statement, with the 'else' clause being the 'altern' field of the second level if satement, exhibiting the intended behaviour when parsing if-else if statements. Furthermoer each 'Block' node was assigned its own unique ScopeID which is used for referencing local variables. Finally, the last feature showing the parser passed this test was that '-1' was parsed as a Prefix node, rather than the parser attempting to interpret it as an infix expression and throwing an error. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{6. Unit Test.png}}
         & 
-        When parsing the if statement, the parser expects a '\{' token, however instead, it encounters a 'return' keyword - it successfully halts compilation and throws an error as expected. 
+        When attempting to parse the if statement, the parser expects a '\{' token. When, instead it encounters the 'return' keyword - it throws a SyntaxError due to the missing character. This error successfully points to the position of the unexpected token, passing the test.
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{8. Unit Test.png}}
         & 
-        The initialise, condition and increment fields are successfully parsed in the for loop, and the '+=' assign op is successfully identified as a 'plus' operation. 
+        The parser assigns the correct expressions to the initialise, condition and increment fields of the for loop. Noting that whilst the initialise field is supposed to be a STATEMENT type, the other two are both EXPRESSIONs. The '+=' increment-assign operation is successfully parsed as a 'PLUS' OPERATOR and stored as an EXPRESSION in the increment field, matching the expected result for this test.  
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{14. Unit Test.png}}
         & 
-        The compiler notices that line 3 isn't terminated by a semicolon and throws an error, pointing out the location of the syntax error and halting compilation. 
+        When parsing the source code, the parser notices that line 3 isn't terminated by a semicolon. It successfully throws a SyntaxError and points out the location of this error in source code, passing this test. 
         \\
     \hline
 \end{longtable}
 
 \subsubsection{Semantic Analysis}
 
-The second part of the compiler that warrants further testing is the sentiment analysis. Once a valid program is successfully parsed, the produced abstract syntax tree is checked for further errors. For instance, referencing a variable which has not yet been declared, and validating the data types of expressions and assignments.  
+The second set of algorithms I want to test is the Sentiment Analysis phase of the compiler. Once a valid program is parsed into an abstract syntax tree, the AST is checked for further errors including references to undeclared variables or subroutines, and expressions where the data types are not compatible. Furthermore, this phase is responsible for executing the constant folding algorithm. Each test case contains the program being compiled, followed by the output of the compiler (and potentially any intermediate steps). 
 
 \begin{longtable}{|p{12cm}|p{4cm}|} 
     \hline
@@ -66,32 +66,32 @@ The second part of the compiler that warrants further testing is the sentiment a
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{7. Unit Test.png}}
         & 
-        The program successfully throws an error when it notices a type error, attempting to multiply an integer and character. 
+        After parsing the program, the AST is fed into the type checker. The type checker notices that a multiply operation is being performed on a character and an integer, two data types which are not compatible - and throws the correponding type error. Passing this test. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{9. Unit Test.png}}
         & 
-        The program successfully throws an error when attempting to call a function with the incorrect number of arguments.
+        The type checker is also responsible for validating the arguments passed to a function call. The testing video demonstrates when a function is called with an argument of an incorrect type, however this test demonstrates when a function is called with the incorrect number of arguments. The type checker compares the arguments passed in the function call to the parameter bindings specified in the function's definition - after noticing there is a mismatch, the type checker halts compilation and throws the correct error, pointing out the location of the invalid call in source code.
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{10. Unit Test.png}}
         & 
-        The program notes that the function 'increment' is attempting to return an incorrect type. The compiler successfully notices that the 'return' expression occupies multiple lines and modifies the format of the error message accordingly.
+        This test validates that the type checker notices when a function is attempting to return a value of an unexpected type, even when that function contains multiple return points inside a conditional expression. The type checker notices that the return values are both booleans, however the function definition expects an integer to be returned. The type checker halts compilation and throws an error, pointing out the entire conditional statement as the location of the error, passing this test. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{11. Unit Test.png}}
         & 
-        The program throws an exception noting that the condition of the if-node will not evaluate to a boolean when executed. 
+        The type checker determines that the expression inside the if node's condition will evaluate to an integer and since if-nodes require their conditionals to operate on boolean values, the type checker throws an error, pointing to the location of the expression in source code. Passing this test. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{12. Unit Test.png}}
         & 
-        The program throws an error and halts compilation when attempting to reference a variable that has not yet been declared.
+        When building up the scope table during sentiment analysis, it notices that the variable 'b' hasn't been declared before it was used in the program. The scope table builder then successfully throws an error and halts compilation. 
         \\
     \hline
         \raisebox{-\totalheight}{\includegraphics[width=12cm]{13. Unit Test.png}}
         & 
-        This program demonstrates the process of constant folding in the compiler. The compiler successfully noticed that the expressions '128*128', '10 + 3*2', and '10+2*5' could be evaluated to integers, and replaced the entire expression with a single node containing its result. 
+        This test case validates constant folding within the compiler. The compiler successfully noticed that the expressions '128*128', '10-2*3', and '18+2*5' could be evaluated to integers since they contain no references to variables, and replaces the entire expression with a single literal node containing its evaluated result. The expression '18+2*5' forms part of the larger expression 'b * (18+2*5)'. The algorithm is able to isolate the part of this expression that can be evaluated into an integer, and correctly replaces the expression with 'b*28'. Passing this test.
         \\
     \hline
 \end{longtable}

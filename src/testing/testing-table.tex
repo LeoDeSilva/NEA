@@ -1,5 +1,7 @@
 \subsection{Testing Table}
 
+Below is a table that outlines the tests I perform in the video linked above, I discuss the parameters and expected result of each test within the video as well as a brief summary below:
+
 \begin{longtable}{|p{1cm}|p{5cm}|p{5cm}|p{2cm}|} 
     \hline
         No & Test & Purpose & Timestamp \\ 
@@ -8,7 +10,7 @@
         & 
         Assemble a program that counts to 15. 
         &
-        To ensure the assembler correctly assembles programs into machine code.
+        To ensure the assembler correctly assembles the program into machine code. I should expect to see the assemblers output match the hand-compiled code described in the video.
         & 
         10:53-14:30
         \\
@@ -17,7 +19,7 @@
         & 
         Assemble a program containing branch and jump instructions between labels.
         &
-        To ensure jump instructions calculate absolute addresses, and branch instructions calculate relative offsets. Validates that the assembler can correctly use the position of labels within the source code to determine these values.
+        To ensure jump instructions calculate absolute addresses, and branch instructions calculate relative offsets. Validates that the assembler can correctly use the position of labels within the source code to determine these values. I should expect to see the assembler correctly calculate relative and absolute addresses for any labels referenced by jump or branch instructions. 
         & 
         14:30-16:26
         \\
@@ -26,7 +28,7 @@
         & 
         Assemble a program containing macro instructions.
         &
-        To ensure that the assembler can correctly expand and assemble macro instructions by validating the number of instructions produced and their opcodes.
+        To ensure that the assembler can correctly expand and assemble macro instructions by validating the number of instructions produced and their opcodes. In the produced machine code, I should expect to see a greater number of instructions than written in the assembly program since some instructions will be expanded before they are compiled. 
         & 
         16:26-18:33
         \\
@@ -44,7 +46,7 @@
         & 
         Attempt to assemble a program containing a undefined mnuemonic.
         &
-        To ensure the assembler halts compilation and throws a syntax error, specifying that the mneumonic encountered is not defined within the instruction set.
+        Verifying that the assembler will not attempt to compile a program containing a mneumonic not defined within the instruction set, and instead halts compilation and throws a syntax error pointing to the location of the invalid mneumonic in source code. 
         & 
         19:18-19:30
         \\
@@ -53,7 +55,7 @@
         & 
         Attempt to assemble a program containing an overflowinging integer.
         &
-        To ensure the assembler throws an error specifying that the number it is attempting to assemble is too large to fit in 16 bits. 
+        To ensure the assembler throws an error specifying that the number it is attempting to assemble is too large to fit in 16 bits, instead of attempting to compile and truncating the number.  
         & 
         19:30-19:40
         \\
@@ -71,7 +73,7 @@
         & 
         Trace the execution of a program to count to 15.
         &
-        Ensure the computer exhibits the correct state and control flow when executing a binary executable. 
+        Verifying that the computer exhibits the correct state and control flow when interpreting a binary executable. I should expect to see the instructions within the loop execute a total of 15 times, indicating the virtual machine is correctly interpreting the loop and branch condition, and that the registers contain the expected values after execution has finished. 
         & 
         21:10-22:20
         \\
@@ -80,7 +82,7 @@
         & 
         Trace the execution of a program containing jump and branch instructions.
         &
-        Validates whether the virtual machine can correctly jump between instructions and follow the control flow specified within the program.
+        Ensures the virtual machine correctly jumps between instructions in the program and follows the expected control flow. Using the trace function of the virtual machine, I should expect to see the PC point to the correct instruction after each jump and branch instruction. 
         & 
         22:20-24:14
         \\
@@ -89,7 +91,7 @@
         & 
         Trace the execution of a program to calculate the factorial of a number.
         &
-        An integration test for the assembler and virtual machine together in order to assemble and execute a more complex program involving the stack and subroutines. 
+        An integration test for the assembler and virtual machine together in order to assemble and execute a more complex program involving the stack and subroutines. I should expect the final state of the computer to contain the calculated factorial of the input number, indicating the program works correctly. 
         & 
         24:15-26:47
         \\
@@ -98,7 +100,7 @@
         & 
         Test the graphical display by executing programs that involve writing piexls to the screen.
         &
-        Ensures the state of pixels on the screen directly correspond to the state of VRAM. Validates that writing to the screen via offsets, and within a loop function as expected.
+        Ensures the state of pixels on the screen directly correspond to the state of VRAM. Validates that writing to the screen via offsets, and within a loop work as intended.
         & 
         26:47-30:35
         \\
@@ -107,7 +109,7 @@
         & 
         Write and compile a program in the high level langauge to calculate the factorial of a number.
         & 
-        Demonstrate that the assembly code produced, after being copiled and executed - correctly exhibits the functionality of the high level program.
+        To demonstrate that the assembly code produced, after being copiled and executed - directly represents the high level program. I should expect to see the final state of the computer after interpreting the compiled code contain the correctly calculated factorial. 
         & 
         31:50-34:17
         \\
@@ -116,7 +118,7 @@
         & 
         Attempt to compile a program containing an unexpected keyword.
         &
-        Validate that the compiler halts compilation and throws a syntax error pointing out the location of the error, and suggesting alternative keywords to fix the issue. 
+        Validates that the compiler halts compilation and throws a syntax error that points out the location of the error as well as suggesting alternative keywords to fix the issue. 
         & 
         32:15-32:35
         \\
@@ -125,7 +127,7 @@
         & 
         Attempt to compile a program without a main subroutine
         &
-        Validate that the linker throws an error when attempting to compile a program without an entry point. 
+        To verify that the program will not be compiled without a \texttt{main()} entry point, instead the linker will throw an error and halt compilation. 
         & 
         32:30-32:38
         \\
@@ -134,7 +136,7 @@
         & 
         Attempt to compile a program attempting to assign a value of the incorrect type to a variable.
         &
-        Ensure that the compiler throws a type error and halts compilation. 
+        Ensuring that the type checker works as intended, and will not attempt to assign a value of an incorrect type to a variable. I should expect to see a syntax error thrown and compilation be aborted.
         & 
         32:50-32:58
         \\
@@ -143,7 +145,7 @@
         & 
         Compile and execute a program that uses VRAM and the graphical display to demonstrate passing by value and reference within my language. 
         &
-        Demonstrate how dereferencing pointers to variables can be used within a subroutine to modify 'external' variables, and how to write to memory by dereferencing a memory location including using pointer aithmetic for offsets. 
+        Showing how dereferencing pointers to variables can be used within a subroutine to modify 'external' variables, and how to write to memory by dereferencing a memory location. Furthermore, how pointer aithmetic can be used when calculating offsets from addresses in memory. 
         & 
         34:22-36:36
         \\
@@ -152,7 +154,7 @@
         & 
         Attempt to compile a program containing a reference to an undeclared subroutine.
         &
-        Ensure that the compiler halts compilation and points to the location of the undeclared subroutine in the source code.
+        Ensure that the compiler halts compilation and points to the location of the undeclared subroutine in the source code. 
         & 
         36:36-36:47
         \\
@@ -161,7 +163,7 @@
         & 
         Compile and exeute a program that demonstrates pointer arithmetic. 
         &   
-        Validates pointer arithmetic, dereferencing and memory addresses all function correclty within the langauge. Including that dereferencing a variable declared as a pointer to another variable, who's since had its contents changed - should, when dereferenced - also exhibit that new value. 
+        Verifies that pointer arithmetic, dereferencing, and memory addresses all function correclty within the langauge. As well as testing the feature that when dereferencing a variable declared as a pointer to another variable, who's since had its contents changed - should, when dereferenced - also refer to that new value. 
         & 
         36:48-38:48
         \\
@@ -170,7 +172,7 @@
         & 
         Compile and exeute pong. 
         &   
-        An integration test that demonstrates how all three components of the system can function together to compile a complex program that involves all elements of the langauge: subroutines, stack frames, constants, conditionals and loops, pointers and references, etc. And furthermore how the CPU can use a delay timer to create a game playable in real time that interfaces with a keyboard. Ensuring the system is sufficiently optimised to execute at 60 frames per second. 
+        An integration test that demonstrates how all three components of the system can function together to compile a complex program that involves all elements of the langauge: subroutines, stack frames, constants, conditionals, loops, pointers and references, etc. And furthermore how the CPU can use a delay timer to create a game playable in real time that interfaces with a keyboard. Ensuring the system is sufficiently optimised to execute at 60 frames per second. 
         & 
         38:38-41:50
         \\
